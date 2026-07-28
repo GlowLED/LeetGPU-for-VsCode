@@ -19,7 +19,8 @@ const SELECTED_LANGUAGE_KEY = "leetgpu.selectedLanguage";
 const SELECTED_ACCELERATOR_KEY = "leetgpu.selectedAccelerator";
 
 interface AcceleratorQuickPickItem extends vscode.QuickPickItem {
-  accelerator?: string;
+  accelerator: string;
+  unavailableReason?: string;
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -334,23 +335,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const compatible = options.filter((option) => option.compatible);
     if (!compatible.length) throw new Error(`No LeetGPU accelerator supports ${language}.`);
     const current = selectedAccelerator();
-    const items: AcceleratorQuickPickItem[] = options.map((option) => option.compatible
-      ? {
-          label: option.name,
-          accelerator: option.name,
-          description: option.name === current ? "Current" : undefined
-        }
-      : {
-          kind: vscode.QuickPickItemKind.Separator,
-          label: `${option.name} — ${option.unavailableReason ?? `unavailable for ${language}`}`
-        });
-    const pick = await vscode.window.showQuickPick(items, {
-      title: `Select a LeetGPU accelerator for ${language}`,
-      placeHolder: "Unavailable accelerators are shown in the list but cannot be selected."
-    });
-    if (!pick?.accelerator) return;
-    await context.globalState.update(SELECTED_ACCELERATOR_KEY, pick.accelerator);
-    problem.updateAccelerator(pick.accelerator);
+    const items: AcceleratorQuickPickItem[] = options.map((option) => ({
+      label: option.name,
+      accelerator: option.name,
+      unavailableReason: option.unavailableReason,
+      description: option.compatible ? option.name === current ? "Current" : undefined : "Unavailable",
+      detail: option.unavailableReason,
+      iconPath: new vscode.ThemeIcon(
+        option.compatible ? option.name === current ? "check" : "server-environment" : "circle-slash"
+      )
+    }));
+    const pickedAccelerator = await showAcceleratorQuickPick(items, language);
+    if (!pickedAccelerator) return;
+    await context.globalState.update(SELECTED_ACCELERATOR_KEY, pickedAccelerator);
+    problem.updateAccelerator(pickedAccelerator);
     solutionCodeLens.refresh();
     await updateEditorContext();
   }
@@ -373,6 +371,48 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     problem.updateAccelerator(selected);
     solutionCodeLens.refresh();
     return selected;
+  }
+
+  function showAcceleratorQuickPick(
+    items: AcceleratorQuickPickItem[],
+    language: string
+  ): Promise<string | undefined> {
+    const title = `Select a LeetGPU accelerator for ${language}`;
+    const defaultPlaceholder = "Unavailable accelerators are visible but cannot be selected.";
+    return new Promise((resolve) => {
+      const quickPick = vscode.window.createQuickPick<AcceleratorQuickPickItem>();
+      let finished = false;
+      quickPick.items = items;
+      quickPick.title = title;
+      quickPick.placeholder = defaultPlaceholder;
+      quickPick.matchOnDescription = true;
+      quickPick.matchOnDetail = true;
+      quickPick.ignoreFocusOut = true;
+
+      const finish = (accelerator?: string): void => {
+        if (finished) return;
+        finished = true;
+        resolve(accelerator);
+        quickPick.hide();
+        quickPick.dispose();
+      };
+
+      quickPick.onDidChangeActive((activeItems) => {
+        quickPick.title = title;
+        quickPick.placeholder = activeItems[0]?.unavailableReason ?? defaultPlaceholder;
+      });
+      quickPick.onDidAccept(() => {
+        const item = quickPick.selectedItems[0] ?? quickPick.activeItems[0];
+        if (!item) return;
+        if (item.unavailableReason) {
+          quickPick.title = `${item.label} is unavailable — ${item.unavailableReason}`;
+          return;
+        }
+        finish(item.accelerator);
+      });
+      quickPick.onDidHide(() => finish());
+      quickPick.show();
+    });
   }
 
   function selectedAccelerator(): string {

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- Render unavailable accelerators as visible picker entries with disabled styling and block their selection.
+
 ## 0.1.3
 
 - Made the problem-panel accelerator label selectable and show the current accelerator in solution CodeLens.
