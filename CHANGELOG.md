@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.8
+
+- Scope responsive challenge-diagram styles to sanitized LeetGPU SVGs so they no longer affect KaTeX's internal matrix delimiters.
+- Restore KaTeX's native bracket sizing and vertical alignment for multi-row matrices.
+
 ## 0.4.7
 
 - Extend KaTeX compatibility normalization from `\\texttt{...}` to all supported `\\text...{...}` commands, fixing tensor names in challenge 87's example matrices and similar formulas in other challenges.

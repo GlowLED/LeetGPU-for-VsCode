@@ -50,7 +50,7 @@ describe("challenge HTML", () => {
       + '<script>alert(1)</script><foreignObject><img src="https://example.com/tracker.png"></foreignObject>'
       + '</svg>'
     );
-    expect(output).toContain('<svg width="420" height="180" viewBox="0 0 420 180">');
+    expect(output).toContain('<svg width="420" height="180" viewBox="0 0 420 180" class="leetgpu-diagram">');
     expect(output).toContain('<rect x="10" y="10" width="80" height="40" fill="#222"></rect>');
     expect(output).toContain('marker-end="url(#arrow)"');
     expect(output).toContain('<text x="20" y="35" fill="#ccc">Input</text>');

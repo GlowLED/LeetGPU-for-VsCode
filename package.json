@@ -2,7 +2,7 @@
   "name": "leetgpu",
   "displayName": "LeetGPU for VS Code (Unofficial)",
   "description": "Solve LeetGPU challenges from VS Code with native files, remote execution, submissions, and leaderboards.",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "publisher": "glowled",
   "icon": "media/leetgpu.png",
   "license": "MIT",

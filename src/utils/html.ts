@@ -22,7 +22,7 @@ export function sanitizeChallengeSpec(spec: string): string {
       code: ["class"],
       span: ["class"],
       annotation: ["encoding"],
-      ...Object.fromEntries(svgTags.map((tag) => [tag, svgAttributes]))
+      ...Object.fromEntries(svgTags.map((tag) => [tag, tag === "svg" ? [...svgAttributes, "class"] : svgAttributes]))
     },
     allowedSchemes: ["https"],
     allowedSchemesByTag: { img: ["https", "data"] },
@@ -38,6 +38,7 @@ export function sanitizeChallengeSpec(spec: string): string {
 
 function sanitizeSvgTag(tagName: string, attributes: Record<string, string>): sanitizeHtml.Tag {
   const safeAttributes = { ...attributes };
+  if (tagName === "svg") safeAttributes.class = "leetgpu-diagram";
   for (const attribute of ["fill", "stroke"]) {
     const value = safeAttributes[attribute];
     if (value && !/^(?:none|currentColor|#[0-9a-f]{3,8})$/i.test(value)) delete safeAttributes[attribute];
