@@ -48,8 +48,8 @@ function sanitizeSvgTag(tagName: string, attributes: Record<string, string>): sa
 }
 
 function normalizeKatexText(value: string): string {
-  return value.replace(/\\texttt\{([^{}]*)\}/g, (_match, content: string) => (
-    `\\texttt{${content.replace(/(^|[^\\])_/g, "$1\\_")}}`
+  return value.replace(/\\(text(?:tt|rm|sf|bf|it|normal)?)\{([^{}]*)\}/g, (_match, command: string, content: string) => (
+    `\\${command}{${content.replace(/(^|[^\\])_/g, "$1\\_")}}`
   ));
 }
 

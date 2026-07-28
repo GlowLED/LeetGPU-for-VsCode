@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.7
+
+- Extend KaTeX compatibility normalization from `\\texttt{...}` to all supported `\\text...{...}` commands, fixing tensor names in challenge 87's example matrices and similar formulas in other challenges.
+- Validate the current 91 challenge descriptions: all 565 detected math expressions parse successfully after normalization.
+
 ## 0.4.6
 
 - Render LeetGPU's inline SVG challenge diagrams instead of stripping their shapes and leaving only plain text.

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import katex from "katex";
 import { escapeHtml, sanitizeChallengeSpec } from "../src/utils/html";
 
 describe("challenge HTML", () => {
@@ -17,12 +18,26 @@ describe("challenge HTML", () => {
     expect(escapeHtml('<img src=x onerror="x">')).toBe("&lt;img src=x onerror=&quot;x&quot;&gt;");
   });
 
-  it("normalizes underscores inside KaTeX texttt commands", () => {
+  it("normalizes underscores inside KaTeX text commands", () => {
     const output = sanitizeChallengeSpec(
-      String.raw`<li>\(t_i = \texttt{draft_tokens}[b, i]\) and \(r = \texttt{already\_escaped}\)</li>`
+      String.raw`<li>\(t_i = \texttt{draft_tokens}[b, i]\) and \(\text{output_tokens} = [1, 2, 0]\) and \(r = \texttt{already\_escaped}\)</li>`
     );
     expect(output).toContain(String.raw`\(t_i = \texttt{draft\_tokens}[b, i]\)`);
+    expect(output).toContain(String.raw`\(\text{output\_tokens} = [1, 2, 0]\)`);
     expect(output).toContain(String.raw`\texttt{already\_escaped}`);
+  });
+
+  it("produces valid KaTeX for challenge 87 tensor examples", () => {
+    const formulas = [
+      String.raw`\text{draft_tokens} = [1, 2, 0]`,
+      String.raw`\text{uniform_samples} = \begin{bmatrix} 0.50 & 0.70 & 0.30 & 0.90 \end{bmatrix}`,
+      String.raw`\text{output_tokens} = \begin{bmatrix} 1 & 3 & 0 & 0 \end{bmatrix}`
+    ];
+    for (const formula of formulas) {
+      const sanitized = sanitizeChallengeSpec(String.raw`\[${formula}\]`);
+      const normalized = sanitized.slice(2, -2).replaceAll("&amp;", "&");
+      expect(() => katex.renderToString(normalized, { throwOnError: true, displayMode: true })).not.toThrow();
+    }
   });
 
   it("keeps safe inline SVG diagrams and strips active SVG content", () => {
