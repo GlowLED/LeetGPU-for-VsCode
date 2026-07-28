@@ -5,8 +5,8 @@ import { ChallengeTreeProvider } from "./providers/challengeTree";
 import { ConsoleViewProvider } from "./providers/consoleView";
 import { LeetGpuLanguageFeatures } from "./providers/languageFeatures";
 import { ProblemPanel, showGlobalLeaderboardPanel } from "./providers/problemPanel";
+import { READ_ONLY_CODE_SCHEME, ReadOnlyCodeProvider } from "./providers/readOnlyCodeProvider";
 import { SolutionCodeLensProvider } from "./providers/solutionCodeLens";
-import { SUBMISSION_CODE_SCHEME, SubmissionCodeProvider } from "./providers/submissionCodeProvider";
 import { LeetGpuClient } from "./services/apiClient";
 import { AuthError, AuthService } from "./services/authService";
 import { LanguageSupportManager } from "./services/languageSupportManager";
@@ -42,7 +42,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
   status.command = "leetgpu.selectAccelerator";
   const solutionCodeLens = new SolutionCodeLensProvider(workspace, selectedAccelerator);
-  const submissionCode = new SubmissionCodeProvider();
+  const readOnlyCode = new ReadOnlyCodeProvider();
   let currentChallenge: ChallengeDetail | undefined;
   let runFinished = true;
 
@@ -73,7 +73,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       ensureConnected(await auth.isConnected());
       return api.getChallengeLeaderboard(currentChallenge.id, language, await compatibleAccelerator(language));
     },
-    openSubmission: async (submissionId) => openSubmissionCode(submissionId)
+    openSubmission: async (submissionId) => openSubmissionCode(submissionId),
+    openSolution: async (solutionId, fileName, content) => {
+      await readOnlyCode.show("solution", solutionId, fileName, content, languageIdForFile(fileName));
+    }
   });
 
   const register = (command: string, callback: (...args: any[]) => unknown) =>
@@ -95,10 +98,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     { dispose: () => transport.dispose() },
     problem,
     solutionCodeLens,
-    submissionCode,
+    readOnlyCode,
     status,
     vscode.window.registerTreeDataProvider("leetgpu.challenges", tree),
-    vscode.workspace.registerTextDocumentContentProvider(SUBMISSION_CODE_SCHEME, submissionCode),
+    vscode.workspace.registerTextDocumentContentProvider(READ_ONLY_CODE_SCHEME, readOnlyCode),
     vscode.window.registerWebviewViewProvider("leetgpu.console", consoleView, {
       webviewOptions: { retainContextWhenHidden: true }
     }),
@@ -547,7 +550,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const file = data.files?.find((candidate) => typeof candidate.content === "string");
     if (!file || typeof file.content !== "string") throw new Error("The submission does not contain readable code.");
     const fileName = typeof file.name === "string" ? file.name : "solution.txt";
-    await submissionCode.show(submissionId, fileName, file.content, languageIdForFile(fileName));
+    await readOnlyCode.show("submission", submissionId, fileName, file.content, languageIdForFile(fileName));
   }
 
   async function resetSolution(): Promise<void> {
@@ -611,7 +614,7 @@ function safeMessage(error: unknown): string {
 }
 
 function languageIdForFile(name: string): string {
-  if (name.endsWith(".cu")) return "cuda-cpp";
+  if (name.endsWith(".cu")) return "cpp";
   if (name.endsWith(".py")) return "python";
   if (name.endsWith(".mojo")) return "mojo";
   return "plaintext";

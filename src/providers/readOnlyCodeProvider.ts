@@ -1,33 +1,40 @@
 import * as vscode from "vscode";
 
-export const SUBMISSION_CODE_SCHEME = "leetgpu-submission";
+export const READ_ONLY_CODE_SCHEME = "leetgpu-code";
 
-export class SubmissionCodeProvider implements vscode.TextDocumentContentProvider, vscode.Disposable {
+export class ReadOnlyCodeProvider implements vscode.TextDocumentContentProvider, vscode.Disposable {
   private readonly contents = new Map<string, string>();
   private readonly changedEmitter = new vscode.EventEmitter<vscode.Uri>();
   public readonly onDidChange = this.changedEmitter.event;
 
   public provideTextDocumentContent(uri: vscode.Uri): string {
-    return this.contents.get(uri.toString()) ?? "// This LeetGPU submission is no longer available in this session.\n";
+    return this.contents.get(uri.toString()) ?? "// This LeetGPU code preview is no longer available.\n";
   }
 
   public async show(
-    submissionId: string,
+    kind: "submission" | "solution",
+    codeId: string,
     fileName: string,
     content: string,
     languageId: string
   ): Promise<void> {
     const uri = vscode.Uri.from({
-      scheme: SUBMISSION_CODE_SCHEME,
-      authority: "history",
-      path: `/${safeSegment(submissionId, "submission")}/${safeSegment(fileName, "solution.txt")}`
+      scheme: READ_ONLY_CODE_SCHEME,
+      authority: kind,
+      path: `/${safeSegment(codeId, kind)}/${safeSegment(fileName, "solution.txt")}`
     });
     this.contents.set(uri.toString(), content);
     this.changedEmitter.fire(uri);
 
+    const availableLanguages = await vscode.languages.getLanguages();
+    const effectiveLanguage = availableLanguages.includes(languageId)
+      ? languageId
+      : languageId === "mojo" && availableLanguages.includes("python")
+        ? "python"
+        : "plaintext";
     let document = await vscode.workspace.openTextDocument(uri);
-    if (document.languageId !== languageId) {
-      document = await vscode.languages.setTextDocumentLanguage(document, languageId);
+    if (document.languageId !== effectiveLanguage) {
+      document = await vscode.languages.setTextDocumentLanguage(document, effectiveLanguage);
     }
     await vscode.window.showTextDocument(document, {
       viewColumn: vscode.ViewColumn.Two,

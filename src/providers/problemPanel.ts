@@ -10,6 +10,7 @@ export interface ProblemPanelHandlers {
   loadSolutions(language: string, page: number): Promise<unknown>;
   loadLeaderboard(language: string): Promise<unknown>;
   openSubmission(submissionId: string): Promise<void>;
+  openSolution(solutionId: string, fileName: string, content: string): Promise<void>;
 }
 
 export class ProblemPanel implements vscode.Disposable {
@@ -87,6 +88,13 @@ export class ProblemPanel implements vscode.Disposable {
         void this.panel?.webview.postMessage({ type: "tabData", tab: message.tab, data });
       } else if (message.command === "openSubmission" && message.submissionId) {
         await this.handlers.openSubmission(message.submissionId);
+      } else if (
+        message.command === "openSolution"
+        && message.solutionId
+        && message.fileName
+        && typeof message.content === "string"
+      ) {
+        await this.handlers.openSolution(message.solutionId, message.fileName, message.content);
       } else if (message.command === "openExternal" && message.url) {
         const uri = vscode.Uri.parse(message.url);
         if (uri.scheme === "https") await vscode.env.openExternal(uri);
@@ -159,6 +167,9 @@ interface WebviewMessage {
   tab?: "submissions" | "solutions" | "leaderboard";
   page?: number;
   submissionId?: string;
+  solutionId?: string;
+  fileName?: string;
+  content?: string;
   url?: string;
 }
 

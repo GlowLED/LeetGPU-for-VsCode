@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1
+
+- Open public Solutions code in a native read-only VS Code preview with language-aware syntax highlighting.
+- Use Python highlighting as a visual fallback for Mojo when a Mojo language extension is unavailable.
+
 ## 0.3.0
 
 - Added a paginated Solutions tab for browsing public code by language and accelerator.

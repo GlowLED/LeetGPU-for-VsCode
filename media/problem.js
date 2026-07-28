@@ -135,7 +135,7 @@ function renderSolutions(payload) {
 
   const list = document.createElement('div');
   list.className = 'solution-list';
-  rows.forEach((row) => {
+  rows.forEach((row, index) => {
     const card = document.createElement('article');
     card.className = 'solution-card';
 
@@ -152,16 +152,17 @@ function renderSolutions(payload) {
     header.append(author, metadata);
     card.appendChild(header);
 
-    const details = document.createElement('details');
-    const summary = document.createElement('summary');
-    summary.textContent = 'View code';
-    const pre = document.createElement('pre');
-    pre.className = 'solution-code';
-    const code = document.createElement('code');
-    code.textContent = typeof row?.fileContent === 'string' ? row.fileContent : '// Code is unavailable.';
-    pre.appendChild(code);
-    details.append(summary, pre);
-    card.appendChild(details);
+    const viewCode = document.createElement('button');
+    viewCode.className = 'view-code';
+    viewCode.textContent = 'View Code';
+    viewCode.disabled = typeof row?.fileContent !== 'string';
+    viewCode.addEventListener('click', () => vscode.postMessage({
+      command: 'openSolution',
+      solutionId: String(row?.id || `${solutionsPage}-${index}-${row?.displayName || 'solution'}`),
+      fileName: String(row?.fileName || defaultSolutionFileName(language.value)),
+      content: row?.fileContent
+    }));
+    card.appendChild(viewCode);
     list.appendChild(card);
   });
   target.replaceChildren(list);
@@ -199,6 +200,12 @@ function formatRuntime(value) {
   if (runtime < 1000) return `${runtime.toFixed(4)}ms`;
   if (runtime < 60000) return `${(runtime / 1000).toFixed(4)}s`;
   return `${Math.floor(runtime / 60000)}m ${((runtime % 60000) / 1000).toFixed(4)}s`;
+}
+
+function defaultSolutionFileName(selectedLanguage) {
+  if (selectedLanguage === 'cuda') return 'solution.cu';
+  if (selectedLanguage === 'mojo') return 'solution.mojo';
+  return 'solution.py';
 }
 
 function showError(message) {

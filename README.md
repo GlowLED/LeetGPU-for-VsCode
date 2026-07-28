@@ -70,7 +70,7 @@ The models intentionally cover common LeetGPU APIs rather than entire vendor SDK
 3. Select an accelerator from the problem panel, solution CodeLens, status bar, or **LeetGPU: Select Accelerator**. The picker keeps every GPU and TPU visible; devices that do not support the current language or account are shown as unavailable. JAX runs on TPU, while the other languages run on GPU. H100, H200, and B200 require an active LeetGPU Pro subscription.
 4. Use CodeLens, editor title buttons, `Ctrl/Cmd+'` to run, or `Ctrl/Cmd+Enter` to submit.
 5. Use the problem panel's **Submissions** tab to inspect your submitted code in a named, read-only preview editor. Closing these previews never asks you to save a file.
-6. Use **Solutions** to browse paginated public solutions for the selected language and accelerator, or inspect streaming output in the LeetGPU Console panel.
+6. Use **Solutions** to browse paginated public solutions for the selected language and accelerator. **View Code** opens a read-only native editor with language-aware syntax highlighting. Streaming output remains available in the LeetGPU Console panel.
 
 New submissions are private by default. Change `leetgpu.submissionVisibility` if you intentionally want public submissions.
 
