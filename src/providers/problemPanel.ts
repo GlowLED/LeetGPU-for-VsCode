@@ -7,6 +7,7 @@ export interface ProblemPanelHandlers {
   selectAccelerator(language: string): Promise<void>;
   run(action: "run" | "submit"): Promise<void>;
   loadSubmissions(language: string): Promise<unknown>;
+  loadSolutions(language: string, page: number): Promise<unknown>;
   loadLeaderboard(language: string): Promise<unknown>;
   openSubmission(submissionId: string): Promise<void>;
 }
@@ -51,10 +52,10 @@ export class ProblemPanel implements vscode.Disposable {
   }
 
   public notifySubmissionComplete(): void {
-    void this.panel?.webview.postMessage({ type: "invalidate", tabs: ["submissions", "leaderboard"] });
+    void this.panel?.webview.postMessage({ type: "invalidate", tabs: ["submissions", "solutions", "leaderboard"] });
   }
 
-  public showTab(tab: "problem" | "submissions" | "leaderboard"): void {
+  public showTab(tab: "problem" | "submissions" | "solutions" | "leaderboard"): void {
     this.panel?.reveal(vscode.ViewColumn.One, false);
     void this.panel?.webview.postMessage({ type: "activateTab", tab });
   }
@@ -77,9 +78,12 @@ export class ProblemPanel implements vscode.Disposable {
       } else if (message.command === "action" && (message.action === "run" || message.action === "submit")) {
         await this.handlers.run(message.action);
       } else if (message.command === "loadTab" && message.tab && message.language) {
+        const page = Number.isInteger(message.page) && message.page! > 0 ? message.page! : 1;
         const data = message.tab === "submissions"
           ? await this.handlers.loadSubmissions(message.language)
-          : await this.handlers.loadLeaderboard(message.language);
+          : message.tab === "solutions"
+            ? await this.handlers.loadSolutions(message.language, page)
+            : await this.handlers.loadLeaderboard(message.language);
         void this.panel?.webview.postMessage({ type: "tabData", tab: message.tab, data });
       } else if (message.command === "openSubmission" && message.submissionId) {
         await this.handlers.openSubmission(message.submissionId);
@@ -123,9 +127,10 @@ export class ProblemPanel implements vscode.Disposable {
       <header><div><h1>${escapeHtml(challenge.title)}</h1><span class="badge ${difficulty}">${difficulty}</span></div>
         <div class="controls"><select id="language" aria-label="Language"></select><button id="gpu" type="button" aria-label="Select accelerator" title="Select accelerator"></button><button id="run">Run</button><button id="submit" class="primary">Submit</button></div>
       </header>
-      <nav><button data-tab="problem" class="active">Problem</button><button data-tab="submissions">Submissions</button><button data-tab="leaderboard">Leaderboard</button></nav>
+      <nav><button data-tab="problem" class="active">Problem</button><button data-tab="submissions">Submissions</button><button data-tab="solutions">Solutions</button><button data-tab="leaderboard">Leaderboard</button></nav>
       <main><section id="problem" class="tab active spec">${sanitizeChallengeSpec(challenge.spec)}</section>
         <section id="submissions" class="tab"><div class="placeholder">Open this tab to load submissions.</div></section>
+        <section id="solutions" class="tab"><div class="placeholder">Open this tab to load public solutions.</div></section>
         <section id="leaderboard" class="tab"><div class="placeholder">Open this tab to load the leaderboard.</div></section>
       </main>
       <div id="toast" role="alert" hidden></div>
@@ -151,7 +156,8 @@ interface WebviewMessage {
   command?: string;
   language?: string;
   action?: string;
-  tab?: "submissions" | "leaderboard";
+  tab?: "submissions" | "solutions" | "leaderboard";
+  page?: number;
   submissionId?: string;
   url?: string;
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+- Added a paginated Solutions tab for browsing public code by language and accelerator.
+- Open submission history in named, read-only virtual documents instead of dirty Untitled editors.
+- Reuse VS Code's preview editor when inspecting submissions, so browsing history does not accumulate tabs.
+
 ## 0.2.0
 
 - Added one-click clipboard import for complete Supabase session JSON, without manually locating `refresh_token`.

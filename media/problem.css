@@ -14,7 +14,15 @@ main { padding: 20px; }
 .tab { display: none; }.tab.active { display: block; }
 .spec { line-height: 1.55; }.spec pre { overflow: auto; padding: 12px; background: var(--vscode-textCodeBlock-background); }.spec code { font-family: var(--vscode-editor-font-family); }
 .spec table, section > table { width: 100%; border-collapse: collapse; }.spec th,.spec td,section > table th,section > table td { text-align: left; padding: 7px; border-bottom: 1px solid var(--vscode-panel-border); }
-#submissions tbody tr { cursor: pointer; } #submissions tbody tr:hover { background: var(--vscode-list-hoverBackground); }
+#submissions tbody tr { cursor: pointer; } #submissions tbody tr:hover, #submissions tbody tr:focus { background: var(--vscode-list-hoverBackground); outline: 1px solid var(--vscode-focusBorder); }
+.solution-list { display: grid; gap: 12px; }
+.solution-card { border: 1px solid var(--vscode-panel-border); border-radius: 6px; overflow: hidden; background: var(--vscode-editor-background); }
+.solution-header { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px; }
+.solution-metadata { color: var(--vscode-descriptionForeground); font-size: 12px; text-align: right; }
+.solution-card details { border-top: 1px solid var(--vscode-panel-border); }
+.solution-card summary { cursor: pointer; padding: 9px 12px; color: var(--vscode-textLink-foreground); }
+.solution-code { box-sizing: border-box; max-height: 520px; overflow: auto; margin: 0; padding: 14px; background: var(--vscode-textCodeBlock-background); font-family: var(--vscode-editor-font-family); font-size: var(--vscode-editor-font-size); white-space: pre; }
+.pagination { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 18px; color: var(--vscode-descriptionForeground); }
 .placeholder { color: var(--vscode-descriptionForeground); padding: 24px 0; }
 #toast { position: fixed; right: 16px; bottom: 16px; max-width: 440px; padding: 10px 14px; color: var(--vscode-notificationsErrorIcon-foreground); background: var(--vscode-notifications-background); border: 1px solid var(--vscode-notifications-border); }
 @media (max-width: 700px) { header { align-items: flex-start; flex-direction: column; } }

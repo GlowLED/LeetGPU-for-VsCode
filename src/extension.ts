@@ -6,6 +6,7 @@ import { ConsoleViewProvider } from "./providers/consoleView";
 import { LeetGpuLanguageFeatures } from "./providers/languageFeatures";
 import { ProblemPanel, showGlobalLeaderboardPanel } from "./providers/problemPanel";
 import { SolutionCodeLensProvider } from "./providers/solutionCodeLens";
+import { SUBMISSION_CODE_SCHEME, SubmissionCodeProvider } from "./providers/submissionCodeProvider";
 import { LeetGpuClient } from "./services/apiClient";
 import { AuthError, AuthService } from "./services/authService";
 import { LanguageSupportManager } from "./services/languageSupportManager";
@@ -41,6 +42,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
   status.command = "leetgpu.selectAccelerator";
   const solutionCodeLens = new SolutionCodeLensProvider(workspace, selectedAccelerator);
+  const submissionCode = new SubmissionCodeProvider();
   let currentChallenge: ChallengeDetail | undefined;
   let runFinished = true;
 
@@ -55,6 +57,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (!currentChallenge) throw new Error("No LeetGPU challenge is open.");
       ensureConnected(await auth.isConnected());
       return api.getSubmissions(currentChallenge.id, language, await compatibleAccelerator(language));
+    },
+    loadSolutions: async (language, page) => {
+      if (!currentChallenge) throw new Error("No LeetGPU challenge is open.");
+      ensureConnected(await auth.isConnected());
+      return api.getSolutions(
+        currentChallenge.id,
+        language,
+        await compatibleAccelerator(language),
+        page
+      );
     },
     loadLeaderboard: async (language) => {
       if (!currentChallenge) throw new Error("No LeetGPU challenge is open.");
@@ -83,8 +95,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     { dispose: () => transport.dispose() },
     problem,
     solutionCodeLens,
+    submissionCode,
     status,
     vscode.window.registerTreeDataProvider("leetgpu.challenges", tree),
+    vscode.workspace.registerTextDocumentContentProvider(SUBMISSION_CODE_SCHEME, submissionCode),
     vscode.window.registerWebviewViewProvider("leetgpu.console", consoleView, {
       webviewOptions: { retainContextWhenHidden: true }
     }),
@@ -141,6 +155,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   register("leetgpu.cancel", cancelActiveRun);
   register("leetgpu.selectAccelerator", selectAccelerator);
   register("leetgpu.showSubmissions", () => showCurrentTab("submissions"));
+  register("leetgpu.showSolutions", () => showCurrentTab("solutions"));
   register("leetgpu.showLeaderboard", () => showCurrentTab("leaderboard"));
   register("leetgpu.showGlobalLeaderboard", showGlobalLeaderboard);
   register("leetgpu.resetSolution", resetSolution);
@@ -506,7 +521,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
   }
 
-  async function showCurrentTab(tab: "submissions" | "leaderboard"): Promise<void> {
+  async function showCurrentTab(tab: "submissions" | "solutions" | "leaderboard"): Promise<void> {
     const active = await workspace.getActiveSolution();
     if (!active) throw new Error("Open a LeetGPU solution first.");
     if (!currentChallenge || currentChallenge.id !== active.challengeId) {
@@ -531,9 +546,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const data = await api.getSubmissionCode(submissionId) as { files?: Array<{ name?: unknown; content?: unknown }> };
     const file = data.files?.find((candidate) => typeof candidate.content === "string");
     if (!file || typeof file.content !== "string") throw new Error("The submission does not contain readable code.");
-    const language = languageIdForFile(typeof file.name === "string" ? file.name : "solution.txt");
-    const document = await vscode.workspace.openTextDocument({ content: file.content, language });
-    await vscode.window.showTextDocument(document, { viewColumn: vscode.ViewColumn.Two, preview: true });
+    const fileName = typeof file.name === "string" ? file.name : "solution.txt";
+    await submissionCode.show(submissionId, fileName, file.content, languageIdForFile(fileName));
   }
 
   async function resetSolution(): Promise<void> {

@@ -44,7 +44,7 @@ Solve [LeetGPU](https://leetgpu.com/) challenges without leaving VS Code. The ex
 - Create separate solution files for CUDA, Triton, PyTorch, JAX, CuTe DSL, and Mojo.
 - Edit without installing CUDA, Torch, Triton, JAX, CuTe, or Mojo: generated analysis models remove dependency errors and provide common API completion, hover, and signature help.
 - Select an accelerator from either the problem panel or solution CodeLens and stream Run/Submit output into the LeetGPU Console.
-- Cancel active runs, inspect submission history, and view challenge/global leaderboards.
+- Cancel active runs, inspect submission history and public solutions, and view challenge/global leaderboards.
 - Work in local folders, WSL, Remote SSH, and Dev Containers.
 
 Solutions are created under:
@@ -69,7 +69,8 @@ The models intentionally cover common LeetGPU APIs rather than entire vendor SDK
 2. Choose a language in the problem panel. The native solution file opens beside it.
 3. Select an accelerator from the problem panel, solution CodeLens, status bar, or **LeetGPU: Select Accelerator**. The picker keeps every GPU and TPU visible; devices that do not support the current language or account are shown as unavailable. JAX runs on TPU, while the other languages run on GPU. H100, H200, and B200 require an active LeetGPU Pro subscription.
 4. Use CodeLens, editor title buttons, `Ctrl/Cmd+'` to run, or `Ctrl/Cmd+Enter` to submit.
-5. Inspect streaming output in the LeetGPU Console panel.
+5. Use the problem panel's **Submissions** tab to inspect your submitted code in a named, read-only preview editor. Closing these previews never asks you to save a file.
+6. Use **Solutions** to browse paginated public solutions for the selected language and accelerator, or inspect streaming output in the LeetGPU Console panel.
 
 New submissions are private by default. Change `leetgpu.submissionVisibility` if you intentionally want public submissions.
 

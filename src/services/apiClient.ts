@@ -60,6 +60,25 @@ export class LeetGpuClient {
     return this.getJson(`/api/v1/submissions/${encodeURIComponent(submissionId)}/code`, true);
   }
 
+  public async getSolutions(
+    challengeId: number,
+    language: string,
+    accelerator: string,
+    page = 1,
+    pageSize = 10
+  ): Promise<unknown> {
+    const query = new URLSearchParams({
+      page: String(page),
+      pageSize: String(pageSize),
+      language,
+      accelerator
+    });
+    return this.getJson(
+      `/api/v1/challenges/${challengeId}/solutions?${query.toString()}`,
+      true
+    );
+  }
+
   public async getChallengeLeaderboard(
     challengeId: number,
     language: string,
