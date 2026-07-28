@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.2
+
+- Use LeetGPU's website tab icon for the extension, Activity Bar, and bottom panel branding.
+
 ## 0.4.1
 
 - Removed the redundant manual Clear button from the console; Run and Submit still clear previous output automatically.
