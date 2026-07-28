@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
-import { findSymbol, symbolsFor, type LanguageSymbol, type SymbolKind } from "../languageSupport/catalog";
+import { completionSymbolsFor, findSymbol, type LanguageSymbol, type SymbolKind } from "../languageSupport/catalog";
 import type { WorkspaceManager } from "../services/workspaceManager";
+
+const CPP_EXTENSION = "ms-vscode.cpptools";
 
 export class LeetGpuLanguageFeatures implements
   vscode.CompletionItemProvider,
@@ -16,7 +18,8 @@ export class LeetGpuLanguageFeatures implements
     const active = await this.workspace.getActiveSolution(document);
     if (!active) return [];
     const namespace = namespaceBeforeCursor(document, position);
-    return symbolsFor(active.language, namespace).map(toCompletionItem);
+    const semanticCudaCompletions = active.language === "cuda" && Boolean(vscode.extensions.getExtension(CPP_EXTENSION));
+    return completionSymbolsFor(active.language, namespace, semanticCudaCompletions).map(toCompletionItem);
   }
 
   public async provideHover(document: vscode.TextDocument, position: vscode.Position): Promise<vscode.Hover | undefined> {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.10
+
+- Complete the CUDA offline analysis model with the stable single-precision device intrinsics, including `__expf`, and add common streams, events, block/warp synchronization, vote, shuffle, and atomic APIs with completion, hover, and signature help.
+- Avoid duplicate CUDA completion entries when Microsoft C/C++ IntelliSense is available while retaining the full LeetGPU fallback catalog when it is not installed.
+
 ## 0.4.9
 
 - Force LeetGPU CUDA solutions and code previews to use VS Code's `cuda-cpp` language mode so kernel launches such as `kernel<<<blocks, threads>>>(...)` are not parsed as invalid ordinary C++ expressions. The generated CUDA analysis header now supplies the launch-configuration declaration required by Microsoft C/C++, concurrent document-open events are deduplicated, and environments without the optional C/C++ extension retain `cpp` syntax highlighting until the CUDA dialect becomes available.

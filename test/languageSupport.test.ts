@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SUPPORT_ASSETS } from "../src/languageSupport/assets";
-import { findSymbol, LANGUAGE_SYMBOLS, symbolsFor } from "../src/languageSupport/catalog";
+import { completionSymbolsFor, findSymbol, LANGUAGE_SYMBOLS, symbolsFor } from "../src/languageSupport/catalog";
 import { addUnique, removeValues, withBooleanEntry } from "../src/utils/configuration";
 
 describe("offline language support", () => {
@@ -16,6 +16,12 @@ describe("offline language support", () => {
     expect(symbolsFor("jax", "jnp").some((symbol) => symbol.label === "zeros")).toBe(true);
     expect(symbolsFor("cute", "cute").some((symbol) => symbol.label === "Tensor")).toBe(true);
     expect(findSymbol("cuda", "cudaDeviceSynchronize")?.signature).toContain("cudaDeviceSynchronize");
+  });
+
+  it("avoids duplicate CUDA fallback completions when C/C++ IntelliSense is available", () => {
+    expect(completionSymbolsFor("cuda").some((symbol) => symbol.label === "__expf")).toBe(true);
+    expect(completionSymbolsFor("cuda", undefined, true).some((symbol) => symbol.label === "__expf")).toBe(false);
+    expect(completionSymbolsFor("cuda", undefined, true).map((symbol) => symbol.label)).toEqual(["kernel"]);
   });
 
   it("ships the headers and import roots used by current starters", () => {
@@ -59,6 +65,83 @@ describe("offline language support", () => {
     }
     expect(runtime).toContain("size_t sharedMem = 0");
     expect(runtime).toContain("void *stream = 0");
+  });
+
+  it("provides CUDA single-precision device intrinsics", () => {
+    const runtime = SUPPORT_ASSETS.find((asset) => asset.path.endsWith("cuda_runtime.h"))?.content ?? "";
+    const intrinsics = [
+      "__cosf",
+      "__exp10f",
+      "__expf",
+      "__fdividef",
+      "__fmaf_rn",
+      "__frcp_rn",
+      "__frsqrt_rn",
+      "__fsqrt_rn",
+      "__log10f",
+      "__log2f",
+      "__logf",
+      "__powf",
+      "__saturatef",
+      "__sincosf",
+      "__sinf",
+      "__tanf"
+    ];
+
+    for (const identifier of intrinsics) {
+      expect(runtime).toContain(identifier);
+      expect(findSymbol("cuda", identifier)?.signature).toContain(identifier);
+    }
+    for (const operation of ["fadd", "fdiv", "fmaf", "fmul", "frcp", "fsqrt", "fsub"]) {
+      for (const mode of ["rd", "rn", "ru", "rz"]) {
+        const identifier = `__${operation}_${mode}`;
+        expect(runtime).toContain(identifier);
+        expect(findSymbol("cuda", identifier)?.signature).toContain(identifier);
+      }
+    }
+  });
+
+  it("provides common CUDA synchronization, warp, and atomic operations", () => {
+    const runtime = SUPPORT_ASSETS.find((asset) => asset.path.endsWith("cuda_runtime.h"))?.content ?? "";
+    for (const identifier of [
+      "__syncthreads_count",
+      "__syncthreads_and",
+      "__syncthreads_or",
+      "__syncwarp",
+      "__ballot_sync",
+      "__activemask",
+      "__threadfence",
+      "__shfl_up_sync",
+      "__shfl_xor_sync",
+      "__match_any_sync",
+      "atomicSub",
+      "atomicCAS",
+      "atomicAnd",
+      "atomicInc"
+    ]) {
+      expect(runtime).toContain(identifier);
+      expect(findSymbol("cuda", identifier)?.signature).toContain(identifier);
+    }
+  });
+
+  it("provides common CUDA stream and event operations", () => {
+    const runtime = SUPPORT_ASSETS.find((asset) => asset.path.endsWith("cuda_runtime.h"))?.content ?? "";
+    for (const identifier of [
+      "cudaPeekAtLastError",
+      "cudaMemcpyAsync",
+      "cudaMemsetAsync",
+      "cudaStreamCreate",
+      "cudaStreamDestroy",
+      "cudaStreamSynchronize",
+      "cudaEventCreate",
+      "cudaEventDestroy",
+      "cudaEventRecord",
+      "cudaEventSynchronize",
+      "cudaEventElapsedTime"
+    ]) {
+      expect(runtime).toContain(identifier);
+      expect(findSymbol("cuda", identifier)?.signature).toContain(identifier);
+    }
   });
 });
 

@@ -11,6 +11,13 @@ export interface LanguageSymbol {
   signature?: string;
 }
 
+const CUDA_ROUNDING_MODES = [
+  ["rd", "round-down"],
+  ["rn", "round-to-nearest-even"],
+  ["ru", "round-up"],
+  ["rz", "round-towards-zero"]
+] as const;
+
 const cuda: LanguageSymbol[] = [
   value("threadIdx", "CUDA built-in thread index", "Coordinates of the current thread within its block."),
   value("blockIdx", "CUDA built-in block index", "Coordinates of the current block within the grid."),
@@ -21,17 +28,66 @@ const cuda: LanguageSymbol[] = [
   keyword("__device__", "Declares a function that runs on the device."),
   keyword("__host__", "Declares a function that runs on the host."),
   keyword("__shared__", "Places a variable in per-block shared memory."),
+  keyword("__constant__", "Places a variable in device constant memory."),
+  keyword("__managed__", "Declares a variable in CUDA unified memory."),
+  keyword("__forceinline__", "Requests that the compiler inline a function."),
+  keyword("__launch_bounds__", "Specifies kernel launch bounds for compiler optimization."),
   fn("cudaDeviceSynchronize", "cudaError_t cudaDeviceSynchronize()", "Waits for preceding device work to complete.", "cudaDeviceSynchronize()"),
   fn("cudaGetLastError", "cudaError_t cudaGetLastError()", "Returns and clears the last CUDA runtime error.", "cudaGetLastError()"),
+  fn("cudaPeekAtLastError", "cudaError_t cudaPeekAtLastError()", "Returns the last CUDA runtime error without clearing it.", "cudaPeekAtLastError()"),
+  fn("cudaGetErrorString", "const char *cudaGetErrorString(cudaError_t error)", "Returns a description of a CUDA runtime error.", "cudaGetErrorString(${1:error})"),
   fn("cudaMalloc", "cudaError_t cudaMalloc(void **ptr, size_t size)", "Allocates device memory.", "cudaMalloc(${1:&ptr}, ${2:size})"),
   fn("cudaFree", "cudaError_t cudaFree(void *ptr)", "Frees device memory.", "cudaFree(${1:ptr})"),
   fn("cudaMemcpy", "cudaError_t cudaMemcpy(void *dst, const void *src, size_t count, cudaMemcpyKind kind)", "Copies memory between host and device address spaces.", "cudaMemcpy(${1:dst}, ${2:src}, ${3:count}, ${4:cudaMemcpyDeviceToDevice})"),
+  fn("cudaMemcpyAsync", "cudaError_t cudaMemcpyAsync(void *dst, const void *src, size_t count, cudaMemcpyKind kind, cudaStream_t stream = 0)", "Enqueues a memory copy on a CUDA stream.", "cudaMemcpyAsync(${1:dst}, ${2:src}, ${3:count}, ${4:cudaMemcpyDeviceToDevice}, ${5:stream})"),
   fn("cudaMemset", "cudaError_t cudaMemset(void *ptr, int value, size_t count)", "Initializes device memory.", "cudaMemset(${1:ptr}, ${2:0}, ${3:count})"),
+  fn("cudaMemsetAsync", "cudaError_t cudaMemsetAsync(void *ptr, int value, size_t count, cudaStream_t stream = 0)", "Enqueues a memory initialization on a CUDA stream.", "cudaMemsetAsync(${1:ptr}, ${2:0}, ${3:count}, ${4:stream})"),
+  fn("cudaStreamCreate", "cudaError_t cudaStreamCreate(cudaStream_t *stream)", "Creates an asynchronous CUDA stream.", "cudaStreamCreate(${1:&stream})"),
+  fn("cudaStreamDestroy", "cudaError_t cudaStreamDestroy(cudaStream_t stream)", "Destroys a CUDA stream.", "cudaStreamDestroy(${1:stream})"),
+  fn("cudaStreamSynchronize", "cudaError_t cudaStreamSynchronize(cudaStream_t stream)", "Waits for work in a CUDA stream to complete.", "cudaStreamSynchronize(${1:stream})"),
+  fn("cudaEventCreate", "cudaError_t cudaEventCreate(cudaEvent_t *event)", "Creates a CUDA event.", "cudaEventCreate(${1:&event})"),
+  fn("cudaEventDestroy", "cudaError_t cudaEventDestroy(cudaEvent_t event)", "Destroys a CUDA event.", "cudaEventDestroy(${1:event})"),
+  fn("cudaEventRecord", "cudaError_t cudaEventRecord(cudaEvent_t event, cudaStream_t stream = 0)", "Records a CUDA event on a stream.", "cudaEventRecord(${1:event}, ${2:stream})"),
+  fn("cudaEventSynchronize", "cudaError_t cudaEventSynchronize(cudaEvent_t event)", "Waits for a CUDA event to complete.", "cudaEventSynchronize(${1:event})"),
+  fn("cudaEventElapsedTime", "cudaError_t cudaEventElapsedTime(float *milliseconds, cudaEvent_t start, cudaEvent_t end)", "Computes elapsed time between two CUDA events.", "cudaEventElapsedTime(${1:&milliseconds}, ${2:start}, ${3:end})"),
+  ...cudaFastMathFunctions(),
+  ...cudaRoundedBinaryFunctions("fadd", "Adds"),
+  ...cudaRoundedBinaryFunctions("fdiv", "Divides"),
+  ...cudaRoundedTernaryFunctions("fmaf", "Computes a fused multiply-add"),
+  ...cudaRoundedBinaryFunctions("fmul", "Multiplies"),
+  ...cudaRoundedUnaryFunctions("frcp", "Computes the reciprocal"),
+  fn("__frsqrt_rn", "float __frsqrt_rn(float x)", "Computes the reciprocal square root in round-to-nearest-even mode.", "__frsqrt_rn(${1:x})"),
+  ...cudaRoundedUnaryFunctions("fsqrt", "Computes the square root"),
+  ...cudaRoundedBinaryFunctions("fsub", "Subtracts"),
   fn("__syncthreads", "void __syncthreads()", "Synchronizes all threads in a block.", "__syncthreads()"),
+  fn("__syncthreads_count", "int __syncthreads_count(int predicate)", "Synchronizes a block and counts threads for which the predicate is nonzero.", "__syncthreads_count(${1:predicate})"),
+  fn("__syncthreads_and", "int __syncthreads_and(int predicate)", "Synchronizes a block and returns whether every predicate is nonzero.", "__syncthreads_and(${1:predicate})"),
+  fn("__syncthreads_or", "int __syncthreads_or(int predicate)", "Synchronizes a block and returns whether any predicate is nonzero.", "__syncthreads_or(${1:predicate})"),
+  fn("__syncwarp", "void __syncwarp(unsigned mask = 0xffffffff)", "Synchronizes the named lanes in a warp.", "__syncwarp(${1:0xffffffff})"),
+  fn("__ballot_sync", "unsigned __ballot_sync(unsigned mask, int predicate)", "Returns a mask of lanes whose predicate is nonzero.", "__ballot_sync(${1:0xffffffff}, ${2:predicate})"),
+  fn("__any_sync", "int __any_sync(unsigned mask, int predicate)", "Returns whether any named lane has a nonzero predicate.", "__any_sync(${1:0xffffffff}, ${2:predicate})"),
+  fn("__all_sync", "int __all_sync(unsigned mask, int predicate)", "Returns whether every named lane has a nonzero predicate.", "__all_sync(${1:0xffffffff}, ${2:predicate})"),
+  fn("__activemask", "unsigned __activemask()", "Returns the mask of currently active lanes.", "__activemask()"),
+  fn("__threadfence_block", "void __threadfence_block()", "Orders the calling thread's memory accesses as observed by its block.", "__threadfence_block()"),
+  fn("__threadfence", "void __threadfence()", "Orders the calling thread's memory accesses as observed by the device.", "__threadfence()"),
+  fn("__threadfence_system", "void __threadfence_system()", "Orders the calling thread's memory accesses as observed by the system.", "__threadfence_system()"),
   fn("atomicAdd", "T atomicAdd(T *address, T value)", "Atomically adds a value.", "atomicAdd(${1:address}, ${2:value})"),
+  fn("atomicSub", "T atomicSub(T *address, T value)", "Atomically subtracts a value.", "atomicSub(${1:address}, ${2:value})"),
   fn("atomicMax", "T atomicMax(T *address, T value)", "Atomically stores the maximum.", "atomicMax(${1:address}, ${2:value})"),
+  fn("atomicMin", "T atomicMin(T *address, T value)", "Atomically stores the minimum.", "atomicMin(${1:address}, ${2:value})"),
+  fn("atomicExch", "T atomicExch(T *address, T value)", "Atomically exchanges a value.", "atomicExch(${1:address}, ${2:value})"),
+  fn("atomicCAS", "T atomicCAS(T *address, T compare, T value)", "Atomically performs compare-and-swap.", "atomicCAS(${1:address}, ${2:compare}, ${3:value})"),
+  fn("atomicAnd", "T atomicAnd(T *address, T value)", "Atomically applies bitwise AND.", "atomicAnd(${1:address}, ${2:value})"),
+  fn("atomicOr", "T atomicOr(T *address, T value)", "Atomically applies bitwise OR.", "atomicOr(${1:address}, ${2:value})"),
+  fn("atomicXor", "T atomicXor(T *address, T value)", "Atomically applies bitwise XOR.", "atomicXor(${1:address}, ${2:value})"),
+  fn("atomicInc", "unsigned atomicInc(unsigned *address, unsigned limit)", "Atomically increments with wraparound.", "atomicInc(${1:address}, ${2:limit})"),
+  fn("atomicDec", "unsigned atomicDec(unsigned *address, unsigned limit)", "Atomically decrements with wraparound.", "atomicDec(${1:address}, ${2:limit})"),
   fn("__shfl_sync", "T __shfl_sync(unsigned mask, T value, int srcLane, int width = warpSize)", "Reads a value from a lane in the warp.", "__shfl_sync(${1:0xffffffff}, ${2:value}, ${3:srcLane})"),
   fn("__shfl_down_sync", "T __shfl_down_sync(unsigned mask, T value, unsigned delta, int width = warpSize)", "Reads a value from a higher-numbered lane.", "__shfl_down_sync(${1:0xffffffff}, ${2:value}, ${3:delta})"),
+  fn("__shfl_up_sync", "T __shfl_up_sync(unsigned mask, T value, unsigned delta, int width = warpSize)", "Reads a value from a lower-numbered lane.", "__shfl_up_sync(${1:0xffffffff}, ${2:value}, ${3:delta})"),
+  fn("__shfl_xor_sync", "T __shfl_xor_sync(unsigned mask, T value, int laneMask, int width = warpSize)", "Reads a value from a lane selected by XORing the lane ID.", "__shfl_xor_sync(${1:0xffffffff}, ${2:value}, ${3:laneMask})"),
+  fn("__match_any_sync", "unsigned __match_any_sync(unsigned mask, T value)", "Returns the mask of lanes with a matching value.", "__match_any_sync(${1:0xffffffff}, ${2:value})"),
+  fn("__match_all_sync", "unsigned __match_all_sync(unsigned mask, T value, int *predicate)", "Returns the matching-lane mask and whether all named lanes match.", "__match_all_sync(${1:0xffffffff}, ${2:value}, ${3:&predicate})"),
   {
     label: "kernel",
     kind: "snippet",
@@ -110,6 +166,17 @@ export function symbolsFor(language: string, namespace?: string): readonly Langu
   return namespace ? LANGUAGE_SYMBOLS[language].filter((candidate) => candidate.namespace === namespace) : LANGUAGE_SYMBOLS[language];
 }
 
+export function completionSymbolsFor(
+  language: string,
+  namespace?: string,
+  semanticCudaCompletions = false
+): readonly LanguageSymbol[] {
+  const symbols = symbolsFor(language, namespace);
+  return language === "cuda" && semanticCudaCompletions
+    ? symbols.filter((candidate) => candidate.kind === "snippet")
+    : symbols;
+}
+
 export function findSymbol(language: string, name: string): LanguageSymbol | undefined {
   if (!isLeetGpuLanguage(language)) return undefined;
   const normalized = name.replace(/^.*\./, "");
@@ -130,6 +197,44 @@ function keyword(label: string, documentation: string): LanguageSymbol {
 
 function fn(label: string, signature: string, documentation: string, insertText?: string): LanguageSymbol {
   return { label, kind: "function", detail: signature, signature, documentation, insertText };
+}
+
+function cudaFastMathFunctions(): LanguageSymbol[] {
+  return [
+    fn("__cosf", "float __cosf(float x)", "Calculates a fast approximate cosine.", "__cosf(${1:x})"),
+    fn("__exp10f", "float __exp10f(float x)", "Calculates a fast approximate base-10 exponential.", "__exp10f(${1:x})"),
+    fn("__expf", "float __expf(float x)", "Calculates a fast approximate base-e exponential.", "__expf(${1:x})"),
+    fn("__fdividef", "float __fdividef(float x, float y)", "Calculates a fast approximate division.", "__fdividef(${1:x}, ${2:y})"),
+    fn("__log10f", "float __log10f(float x)", "Calculates a fast approximate base-10 logarithm.", "__log10f(${1:x})"),
+    fn("__log2f", "float __log2f(float x)", "Calculates a fast approximate base-2 logarithm.", "__log2f(${1:x})"),
+    fn("__logf", "float __logf(float x)", "Calculates a fast approximate natural logarithm.", "__logf(${1:x})"),
+    fn("__powf", "float __powf(float x, float y)", "Calculates a fast approximate power.", "__powf(${1:x}, ${2:y})"),
+    fn("__saturatef", "float __saturatef(float x)", "Clamps a value to the interval [0, 1].", "__saturatef(${1:x})"),
+    fn("__sincosf", "void __sincosf(float x, float *sine, float *cosine)", "Calculates fast approximate sine and cosine values.", "__sincosf(${1:x}, ${2:&sine}, ${3:&cosine})"),
+    fn("__sinf", "float __sinf(float x)", "Calculates a fast approximate sine.", "__sinf(${1:x})"),
+    fn("__tanf", "float __tanf(float x)", "Calculates a fast approximate tangent.", "__tanf(${1:x})")
+  ];
+}
+
+function cudaRoundedBinaryFunctions(operation: string, description: string): LanguageSymbol[] {
+  return CUDA_ROUNDING_MODES.map(([suffix, mode]) => {
+    const label = `__${operation}_${suffix}`;
+    return fn(label, `float ${label}(float x, float y)`, `${description} two values in ${mode} mode.`, `${label}(\${1:x}, \${2:y})`);
+  });
+}
+
+function cudaRoundedTernaryFunctions(operation: string, description: string): LanguageSymbol[] {
+  return CUDA_ROUNDING_MODES.map(([suffix, mode]) => {
+    const label = `__${operation}_${suffix}`;
+    return fn(label, `float ${label}(float x, float y, float z)`, `${description} in ${mode} mode.`, `${label}(\${1:x}, \${2:y}, \${3:z})`);
+  });
+}
+
+function cudaRoundedUnaryFunctions(operation: string, description: string): LanguageSymbol[] {
+  return CUDA_ROUNDING_MODES.map(([suffix, mode]) => {
+    const label = `__${operation}_${suffix}`;
+    return fn(label, `float ${label}(float x)`, `${description} in ${mode} mode.`, `${label}(\${1:x})`);
+  });
 }
 
 function nsFn(label: string, namespace: string, signature: string, documentation: string, insertText?: string): LanguageSymbol {
