@@ -1,0 +1,19 @@
+body { color: var(--vscode-foreground); background: var(--vscode-editor-background); font-family: var(--vscode-font-family); margin: 0; }
+header { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 14px 20px; background: var(--vscode-editor-background); border-bottom: 1px solid var(--vscode-panel-border); }
+h1 { display: inline; font-size: 20px; margin: 0 10px 0 0; }
+.badge { font-size: 12px; border-radius: 10px; padding: 2px 8px; background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); }
+.controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+button, select { color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); border: 1px solid var(--vscode-button-border, transparent); padding: 5px 10px; cursor: pointer; }
+button:hover { background: var(--vscode-button-secondaryHoverBackground); }
+button.primary { color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
+nav { display: flex; gap: 4px; padding: 8px 20px 0; border-bottom: 1px solid var(--vscode-panel-border); }
+nav button { background: transparent; border: 0; border-bottom: 2px solid transparent; }
+nav button.active { border-bottom-color: var(--vscode-focusBorder); }
+main { padding: 20px; }
+.tab { display: none; }.tab.active { display: block; }
+.spec { line-height: 1.55; }.spec pre { overflow: auto; padding: 12px; background: var(--vscode-textCodeBlock-background); }.spec code { font-family: var(--vscode-editor-font-family); }
+.spec table, section > table { width: 100%; border-collapse: collapse; }.spec th,.spec td,section > table th,section > table td { text-align: left; padding: 7px; border-bottom: 1px solid var(--vscode-panel-border); }
+#submissions tbody tr { cursor: pointer; } #submissions tbody tr:hover { background: var(--vscode-list-hoverBackground); }
+.placeholder { color: var(--vscode-descriptionForeground); padding: 24px 0; }
+#toast { position: fixed; right: 16px; bottom: 16px; max-width: 440px; padding: 10px 14px; color: var(--vscode-notificationsErrorIcon-foreground); background: var(--vscode-notifications-background); border: 1px solid var(--vscode-notifications-border); }
+@media (max-width: 700px) { header { align-items: flex-start; flex-direction: column; } }

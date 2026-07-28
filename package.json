@@ -1,0 +1,174 @@
+{
+  "name": "leetgpu",
+  "displayName": "LeetGPU for VS Code (Unofficial)",
+  "description": "Solve LeetGPU challenges from VS Code with native files, remote execution, submissions, and leaderboards.",
+  "version": "0.1.0",
+  "publisher": "glowled",
+  "license": "MIT",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GlowLED/LeetGPU-for-VsCode.git"
+  },
+  "homepage": "https://github.com/GlowLED/LeetGPU-for-VsCode#readme",
+  "bugs": {
+    "url": "https://github.com/GlowLED/LeetGPU-for-VsCode/issues"
+  },
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Education",
+    "Other"
+  ],
+  "keywords": [
+    "gpu",
+    "cuda",
+    "triton",
+    "pytorch",
+    "jax",
+    "mojo"
+  ],
+  "extensionKind": [
+    "ui",
+    "workspace"
+  ],
+  "activationEvents": [
+    "onView:leetgpu.challenges",
+    "onView:leetgpu.console",
+    "onCommand:leetgpu.openChallenge",
+    "onCommand:leetgpu.run",
+    "onCommand:leetgpu.submit"
+  ],
+  "main": "./dist/extension.js",
+  "files": [
+    "dist/extension.js",
+    "media",
+    "README.md",
+    "CHANGELOG.md",
+    "PRIVACY.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "leetgpu",
+          "title": "LeetGPU",
+          "icon": "media/leetgpu.svg"
+        }
+      ],
+      "panel": [
+        {
+          "id": "leetgpuPanel",
+          "title": "LeetGPU",
+          "icon": "media/leetgpu.svg"
+        }
+      ]
+    },
+    "views": {
+      "leetgpu": [
+        {
+          "id": "leetgpu.challenges",
+          "name": "Challenges"
+        }
+      ],
+      "leetgpuPanel": [
+        {
+          "type": "webview",
+          "id": "leetgpu.console",
+          "name": "Console"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "leetgpu.challenges",
+        "contents": "Load LeetGPU challenges and solve them with native VS Code files.\n[Refresh challenges](command:leetgpu.refreshChallenges)\n[Import a session](command:leetgpu.importSession)"
+      }
+    ],
+    "commands": [
+      { "command": "leetgpu.importSession", "title": "LeetGPU: Import Session" },
+      { "command": "leetgpu.disconnect", "title": "LeetGPU: Disconnect" },
+      { "command": "leetgpu.refreshChallenges", "title": "LeetGPU: Refresh Challenges", "icon": "$(refresh)" },
+      { "command": "leetgpu.findChallenge", "title": "LeetGPU: Find Challenge", "icon": "$(search)" },
+      { "command": "leetgpu.openChallenge", "title": "LeetGPU: Open Challenge" },
+      { "command": "leetgpu.run", "title": "LeetGPU: Run", "icon": "$(play)" },
+      { "command": "leetgpu.submit", "title": "LeetGPU: Submit", "icon": "$(cloud-upload)" },
+      { "command": "leetgpu.cancel", "title": "LeetGPU: Cancel Active Run", "icon": "$(debug-stop)" },
+      { "command": "leetgpu.selectAccelerator", "title": "LeetGPU: Select GPU", "icon": "$(server-environment)" },
+      { "command": "leetgpu.showSubmissions", "title": "LeetGPU: Show Submissions" },
+      { "command": "leetgpu.showLeaderboard", "title": "LeetGPU: Show Challenge Leaderboard" },
+      { "command": "leetgpu.showGlobalLeaderboard", "title": "LeetGPU: Show Global Leaderboard" },
+      { "command": "leetgpu.resetSolution", "title": "LeetGPU: Reset Solution to Latest Starter" }
+    ],
+    "menus": {
+      "view/title": [
+        { "command": "leetgpu.findChallenge", "when": "view == leetgpu.challenges", "group": "navigation@1" },
+        { "command": "leetgpu.refreshChallenges", "when": "view == leetgpu.challenges", "group": "navigation@2" },
+        { "command": "leetgpu.cancel", "when": "view == leetgpu.console && leetgpu.running", "group": "navigation@1" }
+      ],
+      "editor/title": [
+        { "command": "leetgpu.run", "when": "leetgpu.activeSolution && !leetgpu.running", "group": "navigation@1" },
+        { "command": "leetgpu.submit", "when": "leetgpu.activeSolution && !leetgpu.running", "group": "navigation@2" },
+        { "command": "leetgpu.cancel", "when": "leetgpu.activeSolution && leetgpu.running", "group": "navigation@1" }
+      ]
+    },
+    "keybindings": [
+      { "command": "leetgpu.run", "key": "ctrl+'", "mac": "cmd+'", "when": "editorTextFocus && leetgpu.activeSolution && !leetgpu.running" },
+      { "command": "leetgpu.submit", "key": "ctrl+enter", "mac": "cmd+enter", "when": "editorTextFocus && leetgpu.activeSolution && !leetgpu.running" }
+    ],
+    "configuration": {
+      "title": "LeetGPU",
+      "properties": {
+        "leetgpu.solutionDirectory": {
+          "type": "string",
+          "default": "leetgpu",
+          "description": "Workspace-relative directory used for challenge solutions."
+        },
+        "leetgpu.defaultAccelerator": {
+          "type": "string",
+          "default": "T4",
+          "description": "Preferred LeetGPU accelerator. Falls back to the first compatible accelerator returned by the service."
+        },
+        "leetgpu.submissionVisibility": {
+          "type": "string",
+          "enum": ["private", "public"],
+          "default": "private",
+          "description": "Whether new submissions are public on LeetGPU."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "check": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "package": "npm run check && npm run test && npm run build && vsce package --no-dependencies"
+  },
+  "dependencies": {
+    "katex": "^0.16.22",
+    "sanitize-html": "^2.17.0",
+    "ws": "^8.18.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "@types/node": "^22.17.0",
+    "@types/sanitize-html": "^2.16.0",
+    "@types/vscode": "^1.96.0",
+    "@types/ws": "^8.18.1",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.6.0",
+    "esbuild": "^0.25.8",
+    "eslint": "^9.32.0",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.39.0",
+    "vitest": "^3.2.4"
+  }
+}

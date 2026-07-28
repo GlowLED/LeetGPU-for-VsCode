@@ -1,0 +1,7 @@
+body { padding: 0; color: var(--vscode-terminal-foreground); background: var(--vscode-terminal-background); }
+#toolbar { display: flex; align-items: center; padding: 5px 8px; border-bottom: 1px solid var(--vscode-panel-border); }
+.spacer { flex: 1; }
+button { color: var(--vscode-button-foreground); background: var(--vscode-button-background); border: 0; padding: 3px 9px; margin-left: 6px; cursor: pointer; }
+button:hover { background: var(--vscode-button-hoverBackground); }
+#output { margin: 0; padding: 8px; min-height: 120px; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--vscode-editor-font-family); font-size: var(--vscode-editor-font-size); }
+.stderr { color: var(--vscode-errorForeground); }
