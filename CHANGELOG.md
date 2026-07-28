@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.3
+
+- Use a transparent, tightly cropped variant of the LeetGPU mark for VS Code view containers so the Activity Bar no longer renders the favicon's opaque background as a solid block.
+- Keep the unmodified website favicon as the extension listing icon.
+
 ## 0.4.2
 
 - Use LeetGPU's website tab icon for the extension, Activity Bar, and bottom panel branding.
