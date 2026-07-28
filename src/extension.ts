@@ -49,30 +49,45 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const problem = new ProblemPanel(context.extensionUri, {
     openLanguage: async (language) => {
       if (!currentChallenge) throw new Error("No LeetGPU challenge is open.");
-      await openSolutionFile(currentChallenge, language);
+      await withProgress(`Switching to ${languageLabel(language)}…`, () =>
+        openSolutionFile(currentChallenge!, language)
+      );
     },
     selectAccelerator: async (language) => selectAccelerator(language),
     run: async (action) => runOrSubmit(action),
-    loadSubmissions: async (language) => {
-      if (!currentChallenge) throw new Error("No LeetGPU challenge is open.");
-      ensureConnected(await auth.isConnected());
-      return api.getSubmissions(currentChallenge.id, language, await compatibleAccelerator(language));
-    },
-    loadSolutions: async (language, page) => {
-      if (!currentChallenge) throw new Error("No LeetGPU challenge is open.");
-      ensureConnected(await auth.isConnected());
-      return api.getSolutions(
-        currentChallenge.id,
-        language,
-        await compatibleAccelerator(language),
-        page
-      );
-    },
-    loadLeaderboard: async (language) => {
-      if (!currentChallenge) throw new Error("No LeetGPU challenge is open.");
-      ensureConnected(await auth.isConnected());
-      return api.getChallengeLeaderboard(currentChallenge.id, language, await compatibleAccelerator(language));
-    },
+    loadSubmissions: async (language) => withProgress(
+      `Loading ${languageLabel(language)} submissions…`,
+      async () => {
+        if (!currentChallenge) throw new Error("No LeetGPU challenge is open.");
+        ensureConnected(await auth.isConnected());
+        return api.getSubmissions(currentChallenge.id, language, await compatibleAccelerator(language));
+      }
+    ),
+    loadSolutions: async (language, page) => withProgress(
+      `Loading ${languageLabel(language)} solutions · page ${page}…`,
+      async () => {
+        if (!currentChallenge) throw new Error("No LeetGPU challenge is open.");
+        ensureConnected(await auth.isConnected());
+        return api.getSolutions(
+          currentChallenge.id,
+          language,
+          await compatibleAccelerator(language),
+          page
+        );
+      }
+    ),
+    loadLeaderboard: async (language) => withProgress(
+      `Loading ${languageLabel(language)} leaderboard…`,
+      async () => {
+        if (!currentChallenge) throw new Error("No LeetGPU challenge is open.");
+        ensureConnected(await auth.isConnected());
+        return api.getChallengeLeaderboard(
+          currentChallenge.id,
+          language,
+          await compatibleAccelerator(language)
+        );
+      }
+    ),
     openSubmission: async (submissionId) => openSubmissionCode(submissionId),
     openSolution: async (solutionId, fileName, content) => {
       await readOnlyCode.show("solution", solutionId, fileName, content, languageIdForFile(fileName));
@@ -416,10 +431,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       ?? active?.language
       ?? context.workspaceState.get<string>(SELECTED_LANGUAGE_KEY)
       ?? "cuda";
-    const [response, hasPaidAccess] = await Promise.all([
-      api.getAccelerators(),
-      hasPaidAcceleratorAccess()
-    ]);
+    const [response, hasPaidAccess] = await withProgress(
+      `Loading available accelerators for ${languageLabel(language)}…`,
+      () => Promise.all([
+        api.getAccelerators(),
+        hasPaidAcceleratorAccess()
+      ])
+    );
     const options = acceleratorOptions(
       response.accelerators,
       response.supportedLanguages,
@@ -546,7 +564,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
 
   async function openSubmissionCode(submissionId: string): Promise<void> {
-    const data = await api.getSubmissionCode(submissionId) as { files?: Array<{ name?: unknown; content?: unknown }> };
+    const data = await withProgress(
+      "Loading submission code…",
+      () => api.getSubmissionCode(submissionId)
+    ) as { files?: Array<{ name?: unknown; content?: unknown }> };
     const file = data.files?.find((candidate) => typeof candidate.content === "string");
     if (!file || typeof file.content !== "string") throw new Error("The submission does not contain readable code.");
     const fileName = typeof file.name === "string" ? file.name : "solution.txt";
@@ -618,4 +639,8 @@ function languageIdForFile(name: string): string {
   if (name.endsWith(".py")) return "python";
   if (name.endsWith(".mojo")) return "mojo";
   return "plaintext";
+}
+
+function languageLabel(language: string): string {
+  return SUPPORTED_LANGUAGE_LABELS[language] ?? language;
 }

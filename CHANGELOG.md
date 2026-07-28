@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2
+
+- Show VS Code notification progress while switching languages and fetching tab data.
+- Show a loading notification while fetching accelerator availability and account access before opening the GPU picker.
+- Show progress while fetching submitted source code.
+
 ## 0.3.1
 
 - Open public Solutions code in a native read-only VS Code preview with language-aware syntax highlighting.
