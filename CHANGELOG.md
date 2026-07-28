@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.5
+
+- Normalize unescaped underscores inside `\\texttt{...}` expressions so KaTeX renders code-like tensor names in challenge descriptions instead of showing red error text.
+- Add a regression test based on challenge 87's `draft_tokens` notation.
+
 ## 0.4.4
 
 - Replace generic challenge difficulty group icons with a green smiley for Easy, yellow lightning bolt for Medium, and red flame for Hard.

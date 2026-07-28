@@ -16,4 +16,12 @@ describe("challenge HTML", () => {
   it("escapes table and title values", () => {
     expect(escapeHtml('<img src=x onerror="x">')).toBe("&lt;img src=x onerror=&quot;x&quot;&gt;");
   });
+
+  it("normalizes underscores inside KaTeX texttt commands", () => {
+    const output = sanitizeChallengeSpec(
+      String.raw`<li>\(t_i = \texttt{draft_tokens}[b, i]\) and \(r = \texttt{already\_escaped}\)</li>`
+    );
+    expect(output).toContain(String.raw`\(t_i = \texttt{draft\_tokens}[b, i]\)`);
+    expect(output).toContain(String.raw`\texttt{already\_escaped}`);
+  });
 });

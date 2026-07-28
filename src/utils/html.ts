@@ -6,7 +6,7 @@ const extraTags = [
 ];
 
 export function sanitizeChallengeSpec(spec: string): string {
-  return sanitizeHtml(spec, {
+  return sanitizeHtml(normalizeKatexText(spec), {
     allowedTags: [...sanitizeHtml.defaults.allowedTags, ...extraTags, "img"],
     allowedAttributes: {
       a: ["href", "title"],
@@ -22,6 +22,12 @@ export function sanitizeChallengeSpec(spec: string): string {
     },
     disallowedTagsMode: "discard"
   });
+}
+
+function normalizeKatexText(value: string): string {
+  return value.replace(/\\texttt\{([^{}]*)\}/g, (_match, content: string) => (
+    `\\texttt{${content.replace(/(^|[^\\])_/g, "$1\\_")}}`
+  ));
 }
 
 export function escapeHtml(value: string): string {
