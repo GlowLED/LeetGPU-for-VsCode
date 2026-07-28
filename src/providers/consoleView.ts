@@ -18,7 +18,6 @@ export class ConsoleViewProvider implements vscode.WebviewViewProvider {
     view.webview.html = this.html(view.webview);
     view.webview.onDidReceiveMessage((message: { command?: string }) => {
       if (message.command === "cancel") void vscode.commands.executeCommand("leetgpu.cancel");
-      if (message.command === "clear") this.clear();
     });
     for (const message of this.pending.splice(0)) void view.webview.postMessage(message);
   }
@@ -66,7 +65,7 @@ export class ConsoleViewProvider implements vscode.WebviewViewProvider {
       <meta name="viewport" content="width=device-width,initial-scale=1">
       <link rel="stylesheet" href="${style}">
     </head><body>
-      <div id="toolbar"><span id="state">Ready</span><span class="spacer"></span><button id="clear">Clear</button><button id="cancel" hidden>Cancel</button></div>
+      <div id="toolbar"><span id="state">Ready</span><span class="spacer"></span><button id="cancel" hidden>Cancel</button></div>
       <pre id="output" aria-live="polite">${escapeHtml("LeetGPU Console ready.\n")}</pre>
       <script nonce="${nonce}" src="${script}"></script>
     </body></html>`;

@@ -2,7 +2,6 @@ const vscode = acquireVsCodeApi();
 const output = document.getElementById('output');
 const state = document.getElementById('state');
 const cancel = document.getElementById('cancel');
-document.getElementById('clear').addEventListener('click', () => vscode.postMessage({ command: 'clear' }));
 cancel.addEventListener('click', () => vscode.postMessage({ command: 'cancel' }));
 window.addEventListener('message', ({ data }) => {
   if (data.type === 'clear') output.textContent = '';

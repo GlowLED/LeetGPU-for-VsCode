@@ -2,7 +2,7 @@
   "name": "leetgpu",
   "displayName": "LeetGPU for VS Code (Unofficial)",
   "description": "Solve LeetGPU challenges from VS Code with native files, remote execution, submissions, and leaderboards.",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "publisher": "glowled",
   "license": "MIT",
   "private": true,
@@ -109,8 +109,7 @@
     "menus": {
       "view/title": [
         { "command": "leetgpu.findChallenge", "when": "view == leetgpu.challenges", "group": "navigation@1" },
-        { "command": "leetgpu.refreshChallenges", "when": "view == leetgpu.challenges", "group": "navigation@2" },
-        { "command": "leetgpu.cancel", "when": "view == leetgpu.console && leetgpu.running", "group": "navigation@1" }
+        { "command": "leetgpu.refreshChallenges", "when": "view == leetgpu.challenges", "group": "navigation@2" }
       ],
       "editor/title": [
         { "command": "leetgpu.run", "when": "leetgpu.activeSolution && !leetgpu.running", "group": "navigation@1" },

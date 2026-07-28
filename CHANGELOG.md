@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1
+
+- Removed the redundant manual Clear button from the console; Run and Submit still clear previous output automatically.
+- Removed the duplicate console title-bar stop action and kept the in-console Cancel button while a run is active.
+
 ## 0.4.0
 
 - Added PTX and NVIDIA SASS generation for the current CUDA solution and selected accelerator.
