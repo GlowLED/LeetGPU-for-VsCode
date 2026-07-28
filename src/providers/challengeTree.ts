@@ -148,7 +148,8 @@ export class ChallengeTreeProvider implements vscode.TreeDataProvider<TreeNode> 
         `${capitalize(element.difficulty)} (${element.challenges.length})`,
         vscode.TreeItemCollapsibleState.Expanded
       );
-      item.iconPath = new vscode.ThemeIcon(difficultyIcon(element.difficulty));
+      item.iconPath = difficultyIcon(element.difficulty);
+      item.tooltip = `${capitalize(element.difficulty)} difficulty · ${element.challenges.length} challenge${element.challenges.length === 1 ? "" : "s"}`;
       return item;
     }
     const item = new vscode.TreeItem(
@@ -184,11 +185,11 @@ export class ChallengeTreeProvider implements vscode.TreeDataProvider<TreeNode> 
   }
 }
 
-function difficultyIcon(difficulty: string): string {
-  if (difficulty === "easy") return "symbol-event";
-  if (difficulty === "medium") return "symbol-method";
-  if (difficulty === "hard") return "flame";
-  return "question";
+function difficultyIcon(difficulty: string): vscode.ThemeIcon {
+  if (difficulty === "easy") return new vscode.ThemeIcon("smiley", new vscode.ThemeColor("charts.green"));
+  if (difficulty === "medium") return new vscode.ThemeIcon("zap", new vscode.ThemeColor("charts.yellow"));
+  if (difficulty === "hard") return new vscode.ThemeIcon("flame", new vscode.ThemeColor("charts.red"));
+  return new vscode.ThemeIcon("question");
 }
 
 function capitalize(value: string): string {

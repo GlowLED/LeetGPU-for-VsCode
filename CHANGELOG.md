@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.4
+
+- Replace generic challenge difficulty group icons with a green smiley for Easy, yellow lightning bolt for Medium, and red flame for Hard.
+- Add difficulty group tooltips with challenge counts.
+
 ## 0.4.3
 
 - Use a transparent, tightly cropped variant of the LeetGPU mark for VS Code view containers so the Activity Bar no longer renders the favicon's opaque background as a solid block.
