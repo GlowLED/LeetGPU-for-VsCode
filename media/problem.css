@@ -13,6 +13,8 @@ nav button.active { border-bottom-color: var(--vscode-focusBorder); }
 main { padding: 20px; }
 .tab { display: none; }.tab.active { display: block; }
 .spec { line-height: 1.55; }.spec pre { overflow: auto; padding: 12px; background: var(--vscode-textCodeBlock-background); }.spec code { font-family: var(--vscode-editor-font-family); }
+.spec svg { display: block; max-width: 100%; height: auto; margin: 20px auto; }
+.spec svg text:not([font-family]) { font-family: monospace; }.spec svg text:not([fill]) { fill: #cccccc; }
 .spec table, section > table { width: 100%; border-collapse: collapse; }.spec th,.spec td,section > table th,section > table td { text-align: left; padding: 7px; border-bottom: 1px solid var(--vscode-panel-border); }
 #submissions tbody tr { cursor: pointer; } #submissions tbody tr:hover, #submissions tbody tr:focus { background: var(--vscode-list-hoverBackground); outline: 1px solid var(--vscode-focusBorder); }
 .solution-list { display: grid; gap: 12px; }

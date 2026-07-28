@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.6
+
+- Render LeetGPU's inline SVG challenge diagrams instead of stripping their shapes and leaving only plain text.
+- Add responsive diagram sizing and a safe fallback style for SVG labels.
+- Restrict SVG support to the drawing tags and attributes used by current challenges while blocking scripts, event handlers, embedded HTML, and external paint references.
+
 ## 0.4.5
 
 - Normalize unescaped underscores inside `\\texttt{...}` expressions so KaTeX renders code-like tensor names in challenge descriptions instead of showing red error text.

@@ -24,4 +24,34 @@ describe("challenge HTML", () => {
     expect(output).toContain(String.raw`\(t_i = \texttt{draft\_tokens}[b, i]\)`);
     expect(output).toContain(String.raw`\texttt{already\_escaped}`);
   });
+
+  it("keeps safe inline SVG diagrams and strips active SVG content", () => {
+    const output = sanitizeChallengeSpec(
+      '<svg width="420" height="180" viewBox="0 0 420 180" style="display:block" onload="steal()">'
+      + '<defs><marker id="arrow" markerWidth="8" markerHeight="8"><path d="M0,0 L8,4 L0,8 Z" fill="#fff"></path></marker></defs>'
+      + '<rect x="10" y="10" width="80" height="40" fill="#222"></rect>'
+      + '<line x1="90" y1="30" x2="180" y2="30" stroke="#44aa66" marker-end="url(#arrow)"></line>'
+      + '<text x="20" y="35" fill="#ccc">Input</text>'
+      + '<script>alert(1)</script><foreignObject><img src="https://example.com/tracker.png"></foreignObject>'
+      + '</svg>'
+    );
+    expect(output).toContain('<svg width="420" height="180" viewBox="0 0 420 180">');
+    expect(output).toContain('<rect x="10" y="10" width="80" height="40" fill="#222"></rect>');
+    expect(output).toContain('marker-end="url(#arrow)"');
+    expect(output).toContain('<text x="20" y="35" fill="#ccc">Input</text>');
+    expect(output).not.toContain("style=");
+    expect(output).not.toContain("onload");
+    expect(output).not.toContain("script");
+    expect(output).not.toContain("foreignObject");
+    expect(output).not.toContain("tracker.png");
+  });
+
+  it("rejects external SVG paint references", () => {
+    const output = sanitizeChallengeSpec(
+      '<svg viewBox="0 0 10 10"><path d="M0 0L10 10" fill="url(https://evil.example/a.svg)" marker-end="url(https://evil.example/a.svg#x)"></path></svg>'
+    );
+    expect(output).not.toContain("evil.example");
+    expect(output).not.toContain("marker-end");
+    expect(output).not.toContain("fill=");
+  });
 });
