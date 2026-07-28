@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.4
+
+- Replace ambiguous loading-screen actions with an explicit challenge-list loading status.
+- Show a retry action only after challenge loading fails, with the request error available as a tooltip.
+- Move sign-in out of the loading state and clarify that it is optional for browsing but required for account actions.
+
 ## 0.3.3
 
 - Open and focus the bottom LeetGPU Console automatically before preparing a Run or Submit request.

@@ -4,9 +4,10 @@ import type { ChallengeSummary } from "../models";
 import type { AuthService } from "../services/authService";
 import type { LeetGpuClient } from "../services/apiClient";
 
-type TreeNode = AccountNode | ActionNode | DifficultyNode | ChallengeNode;
+type TreeNode = AccountNode | ActionNode | StatusNode | DifficultyNode | ChallengeNode;
 interface AccountNode { kind: "account"; label: string; connected: boolean }
 interface ActionNode { kind: "action"; label: string; command: string; icon: string }
+interface StatusNode { kind: "status"; label: string; description?: string; tooltip?: string; icon: string }
 interface DifficultyNode { kind: "difficulty"; difficulty: string; challenges: ChallengeSummary[] }
 interface ChallengeNode { kind: "challenge"; challenge: ChallengeSummary; progress?: string }
 
@@ -15,6 +16,9 @@ export class ChallengeTreeProvider implements vscode.TreeDataProvider<TreeNode> 
   private challenges: ChallengeSummary[] = [];
   private progress: Record<string, string> = {};
   private loaded = false;
+  private loading = false;
+  private loadError: string | undefined;
+  private refreshPromise: Promise<void> | undefined;
   public readonly onDidChangeTreeData = this.changed.event;
 
   public constructor(private readonly api: LeetGpuClient, private readonly auth: AuthService) {}
@@ -23,7 +27,25 @@ export class ChallengeTreeProvider implements vscode.TreeDataProvider<TreeNode> 
     return this.challenges;
   }
 
-  public async refresh(): Promise<void> {
+  public refresh(): Promise<void> {
+    if (this.refreshPromise) return this.refreshPromise;
+    this.loading = true;
+    this.loadError = undefined;
+    this.changed.fire(undefined);
+
+    const operation = this.load().catch((error: unknown) => {
+      this.loadError = error instanceof Error ? error.message : "LeetGPU could not load the challenge list.";
+      throw error;
+    }).finally(() => {
+      this.loading = false;
+      this.refreshPromise = undefined;
+      this.changed.fire(undefined);
+    });
+    this.refreshPromise = operation;
+    return operation;
+  }
+
+  private async load(): Promise<void> {
     const [challenges, connected] = await Promise.all([
       this.api.getChallenges(),
       this.auth.isConnected()
@@ -38,7 +60,6 @@ export class ChallengeTreeProvider implements vscode.TreeDataProvider<TreeNode> 
       }
     }
     this.loaded = true;
-    this.changed.fire(undefined);
   }
 
   public invalidate(): void {
@@ -47,12 +68,32 @@ export class ChallengeTreeProvider implements vscode.TreeDataProvider<TreeNode> 
 
   public async getChildren(element?: TreeNode): Promise<TreeNode[]> {
     if (!element) {
-      if (!this.loaded) await this.refresh();
+      if (!this.loaded && !this.loading && !this.loadError) void this.refresh().catch(() => undefined);
+      if (this.loading) {
+        return [{ kind: "status", label: "Loading challenge list…", icon: "loading~spin" }];
+      }
+      if (!this.loaded && this.loadError) {
+        return [
+          {
+            kind: "status",
+            label: "Challenge list could not be loaded",
+            description: "Network request failed",
+            tooltip: this.loadError,
+            icon: "error"
+          },
+          {
+            kind: "action",
+            label: "Retry loading challenges",
+            command: "leetgpu.refreshChallenges",
+            icon: "refresh"
+          }
+        ];
+      }
       const user = await this.auth.getUser();
       const roots: TreeNode[] = [
         {
           kind: "account",
-          label: user?.displayName ?? user?.email ?? "Connect LeetGPU account",
+          label: user?.displayName ?? user?.email ?? "Sign in to LeetGPU",
           connected: Boolean(user)
         },
         { kind: "action", label: "Global Leaderboard", command: "leetgpu.showGlobalLeaderboard", icon: "trophy" }
@@ -79,11 +120,21 @@ export class ChallengeTreeProvider implements vscode.TreeDataProvider<TreeNode> 
     if (element.kind === "account") {
       const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.None);
       item.iconPath = new vscode.ThemeIcon(element.connected ? "account" : "sign-in");
-      item.description = element.connected ? "Connected" : undefined;
+      item.description = element.connected ? "Connected" : "Run, Submit & history";
+      item.tooltip = element.connected
+        ? "Connected to LeetGPU. Click to disconnect."
+        : "Sign-in is optional for browsing, but required for Run, Submit, Submissions, and Solutions.";
       item.command = {
         command: element.connected ? "leetgpu.disconnect" : "leetgpu.signIn",
         title: element.connected ? "Disconnect" : "Sign In"
       };
+      return item;
+    }
+    if (element.kind === "status") {
+      const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.None);
+      item.description = element.description;
+      item.tooltip = element.tooltip ?? element.label;
+      item.iconPath = new vscode.ThemeIcon(element.icon);
       return item;
     }
     if (element.kind === "action") {

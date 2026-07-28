@@ -153,7 +153,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     })
   );
 
-  register("leetgpu.refreshChallenges", async () => withProgress("Refreshing LeetGPU challenges…", async () => {
+  register("leetgpu.refreshChallenges", async () => withProgress("Reloading LeetGPU challenge list…", async () => {
     await tree.refresh();
   }));
   register("leetgpu.findChallenge", async () => {

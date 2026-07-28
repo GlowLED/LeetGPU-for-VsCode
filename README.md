@@ -40,6 +40,7 @@ Solve [LeetGPU](https://leetgpu.com/) challenges without leaving VS Code. The ex
 ## Features
 
 - Browse, search, and filter the live LeetGPU challenge list.
+- Show explicit loading and retry states in the challenge sidebar; browsing does not require account sign-in.
 - Read sanitized problem statements beside a native VS Code editor.
 - Create separate solution files for CUDA, Triton, PyTorch, JAX, CuTe DSL, and Mojo.
 - Edit without installing CUDA, Torch, Triton, JAX, CuTe, or Mojo: generated analysis models remove dependency errors and provide common API completion, hover, and signature help.
