@@ -2,6 +2,12 @@ import * as vscode from "vscode";
 
 export const READ_ONLY_CODE_SCHEME = "leetgpu-code";
 
+interface CodePreview {
+  fileName: string;
+  content: string;
+  languageId: string;
+}
+
 export class ReadOnlyCodeProvider implements vscode.TextDocumentContentProvider, vscode.Disposable {
   private readonly contents = new Map<string, string>();
   private readonly changedEmitter = new vscode.EventEmitter<vscode.Uri>();
@@ -12,35 +18,61 @@ export class ReadOnlyCodeProvider implements vscode.TextDocumentContentProvider,
   }
 
   public async show(
-    kind: "submission" | "solution",
+    kind: "submission" | "solution" | "assembly",
     codeId: string,
     fileName: string,
     content: string,
     languageId: string
   ): Promise<void> {
+    const document = await this.openDocument(kind, codeId, { fileName, content, languageId });
+    await vscode.window.showTextDocument(document, {
+      viewColumn: vscode.ViewColumn.Two,
+      preserveFocus: false,
+      preview: true
+    });
+  }
+
+  public async showMany(
+    kind: "assembly",
+    codeId: string,
+    previews: CodePreview[]
+  ): Promise<void> {
+    const documents = await Promise.all(
+      previews.map((preview) => this.openDocument(kind, codeId, preview))
+    );
+    for (let index = documents.length - 1; index >= 0; index -= 1) {
+      await vscode.window.showTextDocument(documents[index]!, {
+        viewColumn: vscode.ViewColumn.Two,
+        preserveFocus: index !== 0,
+        preview: false
+      });
+    }
+  }
+
+  private async openDocument(
+    kind: "submission" | "solution" | "assembly",
+    codeId: string,
+    preview: CodePreview
+  ): Promise<vscode.TextDocument> {
     const uri = vscode.Uri.from({
       scheme: READ_ONLY_CODE_SCHEME,
       authority: kind,
-      path: `/${safeSegment(codeId, kind)}/${safeSegment(fileName, "solution.txt")}`
+      path: `/${safeSegment(codeId, kind)}/${safeSegment(preview.fileName, "solution.txt")}`
     });
-    this.contents.set(uri.toString(), content);
+    this.contents.set(uri.toString(), preview.content);
     this.changedEmitter.fire(uri);
 
     const availableLanguages = await vscode.languages.getLanguages();
-    const effectiveLanguage = availableLanguages.includes(languageId)
-      ? languageId
-      : languageId === "mojo" && availableLanguages.includes("python")
+    const effectiveLanguage = availableLanguages.includes(preview.languageId)
+      ? preview.languageId
+      : preview.languageId === "mojo" && availableLanguages.includes("python")
         ? "python"
         : "plaintext";
     let document = await vscode.workspace.openTextDocument(uri);
     if (document.languageId !== effectiveLanguage) {
       document = await vscode.languages.setTextDocumentLanguage(document, effectiveLanguage);
     }
-    await vscode.window.showTextDocument(document, {
-      viewColumn: vscode.ViewColumn.Two,
-      preserveFocus: false,
-      preview: true
-    });
+    return document;
   }
 
   public dispose(): void {

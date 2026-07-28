@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+- Added PTX and NVIDIA SASS generation for the current CUDA solution and selected accelerator.
+- Added CUDA-only problem-panel, CodeLens, editor-title, and command-palette assembly actions.
+- Open PTX and SASS as named, read-only native editor tabs with bundled syntax highlighting.
+- Added cancellable assembly compilation progress and compiler error reporting.
+
 ## 0.3.4
 
 - Replace ambiguous loading-screen actions with an explicit challenge-list loading status.

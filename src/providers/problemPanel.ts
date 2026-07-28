@@ -5,6 +5,7 @@ import { escapeHtml, sanitizeChallengeSpec } from "../utils/html";
 export interface ProblemPanelHandlers {
   openLanguage(language: string): Promise<void>;
   selectAccelerator(language: string): Promise<void>;
+  showAssembly(language: string): Promise<void>;
   run(action: "run" | "submit"): Promise<void>;
   loadSubmissions(language: string): Promise<unknown>;
   loadSolutions(language: string, page: number): Promise<unknown>;
@@ -76,6 +77,8 @@ export class ProblemPanel implements vscode.Disposable {
         this.sendState();
       } else if (message.command === "selectAccelerator") {
         await this.handlers.selectAccelerator(this.language);
+      } else if (message.command === "showAssembly") {
+        await this.handlers.showAssembly(this.language);
       } else if (message.command === "action" && (message.action === "run" || message.action === "submit")) {
         await this.handlers.run(message.action);
       } else if (message.command === "loadTab" && message.tab && message.language) {
@@ -133,7 +136,7 @@ export class ProblemPanel implements vscode.Disposable {
       <link rel="stylesheet" href="${katexStyle}">
     </head><body>
       <header><div><h1>${escapeHtml(challenge.title)}</h1><span class="badge ${difficulty}">${difficulty}</span></div>
-        <div class="controls"><select id="language" aria-label="Language"></select><button id="gpu" type="button" aria-label="Select accelerator" title="Select accelerator"></button><button id="run">Run</button><button id="submit" class="primary">Submit</button></div>
+        <div class="controls"><select id="language" aria-label="Language"></select><button id="gpu" type="button" aria-label="Select accelerator" title="Select accelerator"></button><button id="assembly" type="button" hidden>PTX / SASS</button><button id="run">Run</button><button id="submit" class="primary">Submit</button></div>
       </header>
       <nav><button data-tab="problem" class="active">Problem</button><button data-tab="submissions">Submissions</button><button data-tab="solutions">Solutions</button><button data-tab="leaderboard">Leaderboard</button></nav>
       <main><section id="problem" class="tab active spec">${sanitizeChallengeSpec(challenge.spec)}</section>

@@ -13,5 +13,6 @@ Do not include LeetGPU access tokens, refresh tokens, submitted code, or persona
 - Clipboard session import requires structured JSON and only runs after an explicit command.
 - Direct GitHub and Google browser callbacks are disabled while LeetGPU rejects the extension callback URL.
 - Submission connections are never automatically replayed after a disconnect.
+- PTX/SASS compilation is user-triggered, uses the fixed LeetGPU API endpoint, and keeps generated output in read-only virtual documents.
 
 This unofficial integration depends on undocumented service contracts. Disable or uninstall the extension and remove its local session if unexpected authentication behavior occurs.

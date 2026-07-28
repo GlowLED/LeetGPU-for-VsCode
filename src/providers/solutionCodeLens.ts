@@ -14,7 +14,7 @@ export class SolutionCodeLensProvider implements vscode.CodeLensProvider, vscode
     const solution = await this.workspace.getActiveSolution(document);
     if (!solution) return [];
     const range = new vscode.Range(0, 0, 0, 0);
-    return [
+    const lenses = [
       new vscode.CodeLens(range, { command: "leetgpu.run", title: "$(play) Run" }),
       new vscode.CodeLens(range, { command: "leetgpu.submit", title: "$(cloud-upload) Submit" }),
       new vscode.CodeLens(range, {
@@ -22,6 +22,13 @@ export class SolutionCodeLensProvider implements vscode.CodeLensProvider, vscode
         title: `$(server-environment) Accelerator: ${this.selectedAccelerator()}`
       })
     ];
+    if (solution.language === "cuda") {
+      lenses.push(new vscode.CodeLens(range, {
+        command: "leetgpu.showAssembly",
+        title: "$(code) PTX / SASS"
+      }));
+    }
+    return lenses;
   }
 
   public refresh(): void {

@@ -1,6 +1,7 @@
 const vscode = acquireVsCodeApi();
 const language = document.getElementById('language');
 const gpu = document.getElementById('gpu');
+const assembly = document.getElementById('assembly');
 const toast = document.getElementById('toast');
 let currentTab = 'problem';
 let solutionsPage = 1;
@@ -20,6 +21,7 @@ if (typeof window.renderMathInElement === 'function') {
 document.getElementById('run').addEventListener('click', () => vscode.postMessage({ command: 'action', action: 'run' }));
 document.getElementById('submit').addEventListener('click', () => vscode.postMessage({ command: 'action', action: 'submit' }));
 gpu.addEventListener('click', () => vscode.postMessage({ command: 'selectAccelerator' }));
+assembly.addEventListener('click', () => vscode.postMessage({ command: 'showAssembly' }));
 language.addEventListener('change', () => {
   solutionsPage = 1;
   vscode.postMessage({ command: 'openLanguage', language: language.value });
@@ -63,6 +65,7 @@ window.addEventListener('message', ({ data }) => {
       return option;
     }));
     setAccelerator(data.accelerator);
+    assembly.hidden = previous !== 'cuda';
     if (currentTab !== 'problem') loadCurrentTab();
   }
   if (data.type === 'accelerator') setAccelerator(data.accelerator);

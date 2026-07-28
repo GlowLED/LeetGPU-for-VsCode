@@ -1,0 +1,59 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "LeetGPU NVIDIA SASS",
+  "scopeName": "source.leetgpu.sass",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#addresses" },
+    { "include": "#labels" },
+    { "include": "#predicates" },
+    { "include": "#registers" },
+    { "include": "#instructions" },
+    { "include": "#modifiers" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.block.sass", "begin": "/\\*", "end": "\\*/" },
+        { "name": "comment.line.double-slash.sass", "match": "//.*$" }
+      ]
+    },
+    "addresses": {
+      "patterns": [
+        { "name": "comment.block.address.sass", "match": "/\\*[0-9A-Fa-f]+\\*/" }
+      ]
+    },
+    "labels": {
+      "patterns": [
+        { "name": "entity.name.label.sass", "match": "(?:\\.L_[A-Za-z0-9_]+|[A-Za-z_][A-Za-z0-9_]*)(?=:)" }
+      ]
+    },
+    "predicates": {
+      "patterns": [
+        { "name": "keyword.operator.predicate.sass", "match": "@!?(?:P\\d+|PT|UP\\d+)\\b" }
+      ]
+    },
+    "registers": {
+      "patterns": [
+        { "name": "variable.other.register.sass", "match": "\\b(?:RZ|SRZ|PT|URZ|UPT|R\\d+|P\\d+|UR\\d+|UP\\d+|SR_[A-Z0-9_.]+)\\b" }
+      ]
+    },
+    "instructions": {
+      "patterns": [
+        { "name": "keyword.control.instruction.sass", "match": "\\b[A-Z][A-Z0-9_]*(?=(?:\\.[A-Z0-9_]+)*\\s)" }
+      ]
+    },
+    "modifiers": {
+      "patterns": [
+        { "name": "storage.modifier.sass", "match": "\\.[A-Z][A-Z0-9_]*\\b" }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        { "name": "constant.numeric.hex.sass", "match": "(?<![A-Za-z0-9_])-?0[xX][0-9A-Fa-f]+\\b" },
+        { "name": "constant.numeric.integer.sass", "match": "(?<![A-Za-z0-9_])-?\\d+\\b" }
+      ]
+    }
+  }
+}

@@ -2,7 +2,7 @@
   "name": "leetgpu",
   "displayName": "LeetGPU for VS Code (Unofficial)",
   "description": "Solve LeetGPU challenges from VS Code with native files, remote execution, submissions, and leaderboards.",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "publisher": "glowled",
   "license": "MIT",
   "private": true,
@@ -47,6 +47,7 @@
   "files": [
     "dist/extension.js",
     "media",
+    "syntaxes",
     "README.md",
     "CHANGELOG.md",
     "PRIVACY.md",
@@ -97,6 +98,7 @@
       { "command": "leetgpu.submit", "title": "LeetGPU: Submit", "icon": "$(cloud-upload)" },
       { "command": "leetgpu.cancel", "title": "LeetGPU: Cancel Active Run", "icon": "$(debug-stop)" },
       { "command": "leetgpu.selectAccelerator", "title": "LeetGPU: Select Accelerator", "icon": "$(server-environment)" },
+      { "command": "leetgpu.showAssembly", "title": "LeetGPU: View PTX / SASS", "icon": "$(code)" },
       { "command": "leetgpu.showSubmissions", "title": "LeetGPU: Show Submissions" },
       { "command": "leetgpu.showSolutions", "title": "LeetGPU: Show Solutions" },
       { "command": "leetgpu.showLeaderboard", "title": "LeetGPU: Show Challenge Leaderboard" },
@@ -113,12 +115,21 @@
       "editor/title": [
         { "command": "leetgpu.run", "when": "leetgpu.activeSolution && !leetgpu.running", "group": "navigation@1" },
         { "command": "leetgpu.submit", "when": "leetgpu.activeSolution && !leetgpu.running", "group": "navigation@2" },
+        { "command": "leetgpu.showAssembly", "when": "leetgpu.activeSolution && leetgpu.activeLanguage == cuda && !leetgpu.running", "group": "navigation@3" },
         { "command": "leetgpu.cancel", "when": "leetgpu.activeSolution && leetgpu.running", "group": "navigation@1" }
       ]
     },
     "keybindings": [
       { "command": "leetgpu.run", "key": "ctrl+'", "mac": "cmd+'", "when": "editorTextFocus && leetgpu.activeSolution && !leetgpu.running" },
       { "command": "leetgpu.submit", "key": "ctrl+enter", "mac": "cmd+enter", "when": "editorTextFocus && leetgpu.activeSolution && !leetgpu.running" }
+    ],
+    "languages": [
+      { "id": "leetgpu-ptx", "aliases": ["PTX", "ptx"], "extensions": [".ptx"] },
+      { "id": "leetgpu-sass", "aliases": ["NVIDIA SASS", "sass-asm"], "extensions": [".sassasm"] }
+    ],
+    "grammars": [
+      { "language": "leetgpu-ptx", "scopeName": "source.leetgpu.ptx", "path": "./syntaxes/ptx.tmLanguage.json" },
+      { "language": "leetgpu-sass", "scopeName": "source.leetgpu.sass", "path": "./syntaxes/sass.tmLanguage.json" }
     ],
     "configuration": {
       "title": "LeetGPU",

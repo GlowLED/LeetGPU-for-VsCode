@@ -54,6 +54,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       );
     },
     selectAccelerator: async (language) => selectAccelerator(language),
+    showAssembly: async (language) => {
+      if (!currentChallenge) throw new Error("No LeetGPU challenge is open.");
+      const opened = await workspace.openChallenge(currentChallenge, language);
+      const document = await vscode.workspace.openTextDocument(opened.uri);
+      await showAssembly(document, {
+        challengeId: currentChallenge.id,
+        language: opened.language
+      });
+    },
     run: async (action) => runOrSubmit(action),
     loadSubmissions: async (language) => withProgress(
       `Loading ${languageLabel(language)} submissions…`,
@@ -99,6 +108,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       try {
         return await callback(...args);
       } catch (error) {
+        if (error instanceof vscode.CancellationError) return undefined;
         const message = safeMessage(error);
         log.error(message);
         await vscode.window.showErrorMessage(message);
@@ -172,6 +182,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   register("leetgpu.submit", () => runOrSubmit("submit"));
   register("leetgpu.cancel", cancelActiveRun);
   register("leetgpu.selectAccelerator", selectAccelerator);
+  register("leetgpu.showAssembly", showAssemblyForActiveSolution);
   register("leetgpu.showSubmissions", () => showCurrentTab("submissions"));
   register("leetgpu.showSolutions", () => showCurrentTab("solutions"));
   register("leetgpu.showLeaderboard", () => showCurrentTab("leaderboard"));
@@ -576,6 +587,39 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     await readOnlyCode.show("submission", submissionId, fileName, file.content, languageIdForFile(fileName));
   }
 
+  async function showAssemblyForActiveSolution(): Promise<void> {
+    const document = vscode.window.activeTextEditor?.document;
+    const active = await workspace.getActiveSolution(document);
+    if (!document || !active) throw new Error("Open a LeetGPU CUDA solution before viewing assembly.");
+    await showAssembly(document, active);
+  }
+
+  async function showAssembly(
+    document: vscode.TextDocument,
+    active: { challengeId: number; language: string }
+  ): Promise<void> {
+    if (active.language !== "cuda") {
+      throw new Error("PTX and SASS are currently available only for CUDA solutions.");
+    }
+    if (transport.active) throw new Error("Wait for the active LeetGPU run to finish before generating assembly.");
+
+    const result = await withCancellableProgress("Generating PTX and SASS…", async (signal) => {
+      const accelerator = await compatibleAccelerator("cuda");
+      if (signal.aborted) throw new vscode.CancellationError();
+      const assembly = await api.generateAssembly(
+        [{ name: "solution.cu", content: document.getText() }],
+        accelerator,
+        signal
+      );
+      return { assembly, accelerator };
+    });
+    const previewId = `${active.challengeId}-${result.accelerator}`;
+    await readOnlyCode.showMany("assembly", previewId, [
+      { fileName: "solution.ptx", content: result.assembly.ptx, languageId: "leetgpu-ptx" },
+      { fileName: "solution.sass", content: result.assembly.sass, languageId: "leetgpu-sass" }
+    ]);
+  }
+
   async function resetSolution(): Promise<void> {
     const active = await workspace.getActiveSolution();
     if (!active) throw new Error("Open a LeetGPU solution first.");
@@ -594,7 +638,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   async function updateEditorContext(): Promise<void> {
     const active = await workspace.getActiveSolution();
-    await vscode.commands.executeCommand("setContext", "leetgpu.activeSolution", Boolean(active));
+    await Promise.all([
+      vscode.commands.executeCommand("setContext", "leetgpu.activeSolution", Boolean(active)),
+      vscode.commands.executeCommand("setContext", "leetgpu.activeLanguage", active?.language)
+    ]);
     solutionCodeLens.refresh();
     if (active) {
       status.text = `$(server-environment) LeetGPU: ${selectedAccelerator()}`;
@@ -621,6 +668,28 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       log.error(message);
       throw error;
     }
+  }
+
+  async function withCancellableProgress<T>(
+    title: string,
+    task: (signal: AbortSignal) => Promise<T>
+  ): Promise<T> {
+    return vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title, cancellable: true },
+      async (_progress, token) => {
+        const controller = new AbortController();
+        const cancellation = token.onCancellationRequested(() => controller.abort());
+        try {
+          return await task(controller.signal);
+        } catch (error) {
+          if (token.isCancellationRequested) throw new vscode.CancellationError();
+          log.error(safeMessage(error));
+          throw error;
+        } finally {
+          cancellation.dispose();
+        }
+      }
+    );
   }
 }
 

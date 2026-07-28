@@ -1,10 +1,13 @@
 import { HTTP_API_URL } from "../constants";
 import {
+  assemblyResponseSchema,
   challengeDetailSchema,
   challengeSummarySchema,
+  type AssemblyResponse,
   type AcceleratorResponse,
   type ChallengeDetail,
-  type ChallengeSummary
+  type ChallengeSummary,
+  type SubmissionFile
 } from "../models";
 import type { AuthService } from "./authService";
 
@@ -92,6 +95,19 @@ export class LeetGpuClient {
     return this.getJson(`/api/v1/submissions/leaderboard/${encodeURIComponent(language)}`, false);
   }
 
+  public async generateAssembly(
+    files: SubmissionFile[],
+    accelerator: string,
+    signal?: AbortSignal
+  ): Promise<AssemblyResponse> {
+    const response = await postJson("/api/v1/assembly", {
+      files,
+      accelerator,
+      language: "cuda"
+    }, signal);
+    return assemblyResponseSchema.parse(response);
+  }
+
   public async getDisplayName(): Promise<string | undefined> {
     const body = await this.getJson("/api/v1/me/display-name", true) as { displayName?: unknown };
     return typeof body.displayName === "string" ? body.displayName : undefined;
@@ -146,6 +162,44 @@ async function request(path: string, token?: string): Promise<Response> {
     }
   }
   throw new ApiError(lastError instanceof Error ? lastError.message : "LeetGPU request failed.");
+}
+
+async function postJson(path: string, body: unknown, externalSignal?: AbortSignal): Promise<unknown> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45_000);
+  const abort = () => controller.abort();
+  externalSignal?.addEventListener("abort", abort, { once: true });
+  try {
+    const response = await fetch(`${HTTP_API_URL}${path}`, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      let message = `LeetGPU request failed (${response.status}).`;
+      try {
+        const error = await response.json() as { error?: unknown; stderr?: unknown };
+        const detail = typeof error.error === "string"
+          ? error.error
+          : typeof error.stderr === "string" ? error.stderr : undefined;
+        if (detail) message = detail.slice(0, 8_000);
+      } catch {
+        // Keep the status-only error when the service does not return JSON.
+      }
+      throw new ApiError(message, response.status);
+    }
+    return await response.json();
+  } catch (error) {
+    if (externalSignal?.aborted) throw new ApiError("Assembly generation was canceled.");
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new ApiError("Assembly generation timed out.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    externalSignal?.removeEventListener("abort", abort);
+  }
 }
 
 function isLanguageMap(value: unknown): value is Record<string, string[]> {

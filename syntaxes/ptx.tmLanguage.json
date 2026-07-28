@@ -1,0 +1,71 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "LeetGPU PTX",
+  "scopeName": "source.leetgpu.ptx",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#labels" },
+    { "include": "#registers" },
+    { "include": "#directives" },
+    { "include": "#types" },
+    { "include": "#modifiers" },
+    { "include": "#predicates" },
+    { "include": "#instructions" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.ptx", "match": "//.*$" }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        { "name": "string.quoted.double.ptx", "begin": "\"", "end": "\"", "patterns": [{ "name": "constant.character.escape.ptx", "match": "\\\\." }] }
+      ]
+    },
+    "labels": {
+      "patterns": [
+        { "name": "entity.name.label.ptx", "match": "\\b[A-Za-z_$][A-Za-z0-9_$]*(?=:)" }
+      ]
+    },
+    "registers": {
+      "patterns": [
+        { "name": "variable.other.register.ptx", "match": "%[A-Za-z][A-Za-z0-9_]*" }
+      ]
+    },
+    "directives": {
+      "patterns": [
+        { "name": "keyword.control.directive.ptx", "match": "\\.(?:version|target|address_size|visible|entry|func|param|reg|local|shared|global|const|align|weak|extern|common|pragma|section|file|loc|maxnreg|maxntid|reqntid|minnctapersm|maxnctapersm|sreg|tex|surf|sampler)\\b" }
+      ]
+    },
+    "types": {
+      "patterns": [
+        { "name": "storage.type.ptx", "match": "\\.(?:u|s|b|f)(?:8|16|32|64)\\b|\\.pred\\b" }
+      ]
+    },
+    "modifiers": {
+      "patterns": [
+        { "name": "storage.modifier.ptx", "match": "\\.(?:sync|arrive|wide|uni|rn|rz|rm|rp|ftz|sat|approx|full|to|lo|hi|ca|cg|cs|lu|cv|wb|wt|nc|relaxed|acquire|release|volatile|v2|v4|1d|2d|3d)\\b" }
+      ]
+    },
+    "predicates": {
+      "patterns": [
+        { "name": "keyword.operator.predicate.ptx", "match": "@!?%?[A-Za-z][A-Za-z0-9_]*" }
+      ]
+    },
+    "instructions": {
+      "patterns": [
+        { "name": "keyword.control.instruction.ptx", "match": "\\b(?:mov|ld|st|add|sub|mul|mad|fma|div|rem|abs|neg|min|max|setp|selp|and|or|xor|not|shl|shr|cvt|cvta|bra|call|ret|bar|atom|red|vote|shfl|wmma|mma|cp|tex|suld|sust|trap|exit|nanosleep|prefetch|prefetchu|membar|isspacep|set|slct|rcp|sqrt|rsqrt|sin|cos|lg2|ex2|tanh|testp|copysign|clz|brev|popc|bfind|bfe|bfi|prmt|lop3|shf)\\b" }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        { "name": "constant.numeric.hex.ptx", "match": "\\b0[xX][0-9A-Fa-f]+\\b|\\b0[fF][0-9A-Fa-f]{8}\\b|\\b0[dD][0-9A-Fa-f]{16}\\b" },
+        { "name": "constant.numeric.float.ptx", "match": "(?<![A-Za-z0-9_])[-+]?(?:\\d+\\.\\d*|\\d*\\.\\d+)(?:[eE][-+]?\\d+)?" },
+        { "name": "constant.numeric.integer.ptx", "match": "(?<![A-Za-z0-9_])[-+]?\\d+\\b" }
+      ]
+    }
+  }
+}

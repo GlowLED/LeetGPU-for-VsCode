@@ -19,9 +19,15 @@ export const challengeDetailSchema = challengeSummarySchema.extend({
   starterCode: z.array(starterCodeSchema).default([])
 }).passthrough();
 
+export const assemblyResponseSchema = z.object({
+  ptx: z.string(),
+  sass: z.string()
+});
+
 export type ChallengeSummary = z.infer<typeof challengeSummarySchema>;
 export type StarterCode = z.infer<typeof starterCodeSchema>;
 export type ChallengeDetail = z.infer<typeof challengeDetailSchema>;
+export type AssemblyResponse = z.infer<typeof assemblyResponseSchema>;
 
 export interface AuthUser {
   id: string;

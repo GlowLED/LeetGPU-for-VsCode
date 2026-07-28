@@ -45,6 +45,7 @@ Solve [LeetGPU](https://leetgpu.com/) challenges without leaving VS Code. The ex
 - Create separate solution files for CUDA, Triton, PyTorch, JAX, CuTe DSL, and Mojo.
 - Edit without installing CUDA, Torch, Triton, JAX, CuTe, or Mojo: generated analysis models remove dependency errors and provide common API completion, hover, and signature help.
 - Select an accelerator from either the problem panel or solution CodeLens and stream Run/Submit output into the LeetGPU Console.
+- Generate PTX and NVIDIA SASS for the current CUDA code and accelerator, then inspect both in syntax-highlighted read-only editors.
 - Automatically open the bottom LeetGPU Console on Run/Submit and render ANSI-colored test output with the active VS Code terminal theme.
 - Show notification progress while switching languages or loading accelerators, submissions, solutions, and leaderboards.
 - Cancel active runs, inspect submission history and public solutions, and view challenge/global leaderboards.
@@ -74,6 +75,7 @@ The models intentionally cover common LeetGPU APIs rather than entire vendor SDK
 4. Use CodeLens, editor title buttons, `Ctrl/Cmd+'` to run, or `Ctrl/Cmd+Enter` to submit.
 5. Use the problem panel's **Submissions** tab to inspect your submitted code in a named, read-only preview editor. Closing these previews never asks you to save a file.
 6. Use **Solutions** to browse paginated public solutions for the selected language and accelerator. **View Code** opens a read-only native editor with language-aware syntax highlighting. Streaming output remains available in the LeetGPU Console panel.
+7. For CUDA solutions, use **PTX / SASS** in the problem panel or CodeLens, the editor-title code icon, or **LeetGPU: View PTX / SASS**. Compilation uses the current editor contents, including unsaved changes, and opens both generated outputs as read-only tabs.
 
 New submissions are private by default. Change `leetgpu.submissionVisibility` if you intentionally want public submissions.
 
