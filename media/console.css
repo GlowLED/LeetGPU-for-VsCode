@@ -5,3 +5,25 @@ button { color: var(--vscode-button-foreground); background: var(--vscode-button
 button:hover { background: var(--vscode-button-hoverBackground); }
 #output { margin: 0; padding: 8px; min-height: 120px; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--vscode-editor-font-family); font-size: var(--vscode-editor-font-size); }
 .stderr { color: var(--vscode-errorForeground); }
+.ansi-bold { font-weight: 700; }
+.ansi-dim { opacity: 0.7; }
+.ansi-italic { font-style: italic; }
+.ansi-underline { text-decoration: underline; }
+.ansi-strike { text-decoration: line-through; }
+.ansi-inverse { color: var(--vscode-terminal-background); background: var(--vscode-terminal-foreground); }
+.ansi-fg-black { color: var(--vscode-terminal-ansiBlack); }.ansi-bg-black { background: var(--vscode-terminal-ansiBlack); }
+.ansi-fg-red { color: var(--vscode-terminal-ansiRed); }.ansi-bg-red { background: var(--vscode-terminal-ansiRed); }
+.ansi-fg-green { color: var(--vscode-terminal-ansiGreen); }.ansi-bg-green { background: var(--vscode-terminal-ansiGreen); }
+.ansi-fg-yellow { color: var(--vscode-terminal-ansiYellow); }.ansi-bg-yellow { background: var(--vscode-terminal-ansiYellow); }
+.ansi-fg-blue { color: var(--vscode-terminal-ansiBlue); }.ansi-bg-blue { background: var(--vscode-terminal-ansiBlue); }
+.ansi-fg-magenta { color: var(--vscode-terminal-ansiMagenta); }.ansi-bg-magenta { background: var(--vscode-terminal-ansiMagenta); }
+.ansi-fg-cyan { color: var(--vscode-terminal-ansiCyan); }.ansi-bg-cyan { background: var(--vscode-terminal-ansiCyan); }
+.ansi-fg-white { color: var(--vscode-terminal-ansiWhite); }.ansi-bg-white { background: var(--vscode-terminal-ansiWhite); }
+.ansi-fg-bright-black { color: var(--vscode-terminal-ansiBrightBlack); }.ansi-bg-bright-black { background: var(--vscode-terminal-ansiBrightBlack); }
+.ansi-fg-bright-red { color: var(--vscode-terminal-ansiBrightRed); }.ansi-bg-bright-red { background: var(--vscode-terminal-ansiBrightRed); }
+.ansi-fg-bright-green { color: var(--vscode-terminal-ansiBrightGreen); }.ansi-bg-bright-green { background: var(--vscode-terminal-ansiBrightGreen); }
+.ansi-fg-bright-yellow { color: var(--vscode-terminal-ansiBrightYellow); }.ansi-bg-bright-yellow { background: var(--vscode-terminal-ansiBrightYellow); }
+.ansi-fg-bright-blue { color: var(--vscode-terminal-ansiBrightBlue); }.ansi-bg-bright-blue { background: var(--vscode-terminal-ansiBrightBlue); }
+.ansi-fg-bright-magenta { color: var(--vscode-terminal-ansiBrightMagenta); }.ansi-bg-bright-magenta { background: var(--vscode-terminal-ansiBrightMagenta); }
+.ansi-fg-bright-cyan { color: var(--vscode-terminal-ansiBrightCyan); }.ansi-bg-bright-cyan { background: var(--vscode-terminal-ansiBrightCyan); }
+.ansi-fg-bright-white { color: var(--vscode-terminal-ansiBrightWhite); }.ansi-bg-bright-white { background: var(--vscode-terminal-ansiBrightWhite); }

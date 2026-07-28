@@ -358,6 +358,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (!(await auth.isConnected())) return;
     }
 
+    await consoleView.reveal();
+    consoleView.clear();
+    consoleView.write(`Preparing ${action === "run" ? "run" : "submission"}…\n`);
+
     const [accessToken, user, accelerator] = await Promise.all([
       auth.getAccessToken(),
       auth.getUser(),
@@ -378,8 +382,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       public: visibility === "public"
     };
 
-    consoleView.clear();
-    consoleView.reveal();
     consoleView.write(`${action === "run" ? "Running" : "Submitting"} ${active.title} · ${active.language} · ${accelerator}\n`);
     setRunning(true, action === "run" ? "Running…" : "Submitting…");
     runFinished = false;

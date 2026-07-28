@@ -44,6 +44,7 @@ Solve [LeetGPU](https://leetgpu.com/) challenges without leaving VS Code. The ex
 - Create separate solution files for CUDA, Triton, PyTorch, JAX, CuTe DSL, and Mojo.
 - Edit without installing CUDA, Torch, Triton, JAX, CuTe, or Mojo: generated analysis models remove dependency errors and provide common API completion, hover, and signature help.
 - Select an accelerator from either the problem panel or solution CodeLens and stream Run/Submit output into the LeetGPU Console.
+- Automatically open the bottom LeetGPU Console on Run/Submit and render ANSI-colored test output with the active VS Code terminal theme.
 - Show notification progress while switching languages or loading accelerators, submissions, solutions, and leaderboards.
 - Cancel active runs, inspect submission history and public solutions, and view challenge/global leaderboards.
 - Work in local folders, WSL, Remote SSH, and Dev Containers.

@@ -1,9 +1,11 @@
 import * as vscode from "vscode";
 import { escapeHtml } from "../utils/html";
+import { AnsiParser } from "../utils/ansi";
 
 export class ConsoleViewProvider implements vscode.WebviewViewProvider {
   private view: vscode.WebviewView | undefined;
   private readonly pending: Array<{ type: string; [key: string]: unknown }> = [];
+  private readonly parsers = new Map<string, AnsiParser>();
 
   public constructor(private readonly extensionUri: vscode.Uri) {}
 
@@ -22,20 +24,31 @@ export class ConsoleViewProvider implements vscode.WebviewViewProvider {
   }
 
   public clear(): void {
+    for (const parser of this.parsers.values()) parser.reset();
     this.send({ type: "clear" });
   }
 
   public write(text: string, stream = "stdout"): void {
-    this.send({ type: "write", text, stream });
+    let parser = this.parsers.get(stream);
+    if (!parser) {
+      parser = new AnsiParser();
+      this.parsers.set(stream, parser);
+    }
+    const segments = parser.write(text).map((segment) => ({
+      ...segment,
+      classes: stream === "stderr" ? ["stderr", ...segment.classes] : segment.classes
+    }));
+    if (segments.length) this.send({ type: "write", segments });
   }
 
   public setRunning(running: boolean, label?: string): void {
     this.send({ type: "state", running, label });
   }
 
-  public reveal(): void {
-    this.view?.show?.(true);
-    void vscode.commands.executeCommand("workbench.action.focusPanel");
+  public async reveal(): Promise<void> {
+    await vscode.commands.executeCommand("workbench.view.extension.leetgpuPanel");
+    await vscode.commands.executeCommand("leetgpu.console.focus");
+    this.view?.show?.(false);
   }
 
   private send(message: { type: string; [key: string]: unknown }): void {

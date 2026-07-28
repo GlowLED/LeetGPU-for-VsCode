@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.3
+
+- Open and focus the bottom LeetGPU Console automatically before preparing a Run or Submit request.
+- Parse streaming ANSI SGR output into VS Code terminal theme colors instead of displaying raw escape characters.
+- Preserve ANSI formatting across split WebSocket output chunks and strip unsupported terminal control sequences.
+
 ## 0.3.2
 
 - Show VS Code notification progress while switching languages and fetching tab data.

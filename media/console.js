@@ -7,10 +7,12 @@ cancel.addEventListener('click', () => vscode.postMessage({ command: 'cancel' })
 window.addEventListener('message', ({ data }) => {
   if (data.type === 'clear') output.textContent = '';
   if (data.type === 'write') {
-    const span = document.createElement('span');
-    span.className = data.stream === 'stderr' ? 'stderr' : '';
-    span.textContent = data.text;
-    output.appendChild(span);
+    for (const segment of data.segments || []) {
+      const span = document.createElement('span');
+      span.className = Array.isArray(segment.classes) ? segment.classes.join(' ') : '';
+      span.textContent = segment.text;
+      output.appendChild(span);
+    }
     output.scrollTop = output.scrollHeight;
   }
   if (data.type === 'state') {
