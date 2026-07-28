@@ -8,6 +8,7 @@ export const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InloZHR5c2FjZGtxb3F1dmtkd2RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2MzQ3MTksImV4cCI6MjA1NDIxMDcxOX0.aevKbBm0HgYbEI6CQ6UobY728lYwhi7dawnI3F_d0QM";
 
 export const AUTH_SECRET_KEY = "leetgpu.auth.session.v1";
+export const PENDING_AUTH_SECRET_KEY = "leetgpu.auth.pending.v1";
 export const MANIFEST_FILE = ".leetgpu.json";
 export const FINAL_SUBMISSION_STATUSES = new Set([
   "success",

@@ -81,8 +81,8 @@ export class ChallengeTreeProvider implements vscode.TreeDataProvider<TreeNode> 
       item.iconPath = new vscode.ThemeIcon(element.connected ? "account" : "sign-in");
       item.description = element.connected ? "Connected" : undefined;
       item.command = {
-        command: element.connected ? "leetgpu.disconnect" : "leetgpu.importSession",
-        title: element.connected ? "Disconnect" : "Import Session"
+        command: element.connected ? "leetgpu.disconnect" : "leetgpu.signIn",
+        title: element.connected ? "Disconnect" : "Sign In"
       };
       return item;
     }

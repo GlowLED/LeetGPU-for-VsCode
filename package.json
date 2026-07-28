@@ -2,7 +2,7 @@
   "name": "leetgpu",
   "displayName": "LeetGPU for VS Code (Unofficial)",
   "description": "Solve LeetGPU challenges from VS Code with native files, remote execution, submissions, and leaderboards.",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "publisher": "glowled",
   "license": "MIT",
   "private": true,
@@ -35,6 +35,7 @@
     "workspace"
   ],
   "activationEvents": [
+    "onUri",
     "onView:leetgpu.challenges",
     "onView:leetgpu.console",
     "onCommand:leetgpu.openChallenge",
@@ -88,11 +89,13 @@
     "viewsWelcome": [
       {
         "view": "leetgpu.challenges",
-        "contents": "Load LeetGPU challenges and solve them with native VS Code files.\n[Refresh challenges](command:leetgpu.refreshChallenges)\n[Import a session](command:leetgpu.importSession)"
+        "contents": "Load LeetGPU challenges and solve them with native VS Code files.\n[Refresh challenges](command:leetgpu.refreshChallenges)\n[Sign in](command:leetgpu.signIn)"
       }
     ],
     "commands": [
-      { "command": "leetgpu.importSession", "title": "LeetGPU: Import Session" },
+      { "command": "leetgpu.signIn", "title": "LeetGPU: Sign In" },
+      { "command": "leetgpu.importSessionFromClipboard", "title": "LeetGPU: Import Session JSON from Clipboard" },
+      { "command": "leetgpu.importSession", "title": "LeetGPU: Import Session Manually" },
       { "command": "leetgpu.disconnect", "title": "LeetGPU: Disconnect" },
       { "command": "leetgpu.refreshChallenges", "title": "LeetGPU: Refresh Challenges", "icon": "$(refresh)" },
       { "command": "leetgpu.findChallenge", "title": "LeetGPU: Find Challenge", "icon": "$(search)" },

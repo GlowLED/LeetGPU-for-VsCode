@@ -32,18 +32,25 @@ The models intentionally cover common LeetGPU APIs rather than entire vendor SDK
 
 ## Connect your account
 
-LeetGPU currently exposes GitHub/Google browser login but no public device-code or VS Code OAuth callback. This beta therefore imports a dedicated Supabase refresh token.
+Run **LeetGPU: Sign In** and choose one of these methods:
+
+- **Continue with GitHub/Google** opens LeetGPU's Supabase OAuth flow in your browser. It uses an authorization code with PKCE and returns to VS Code without copying a token. LeetGPU must allow the generated VS Code callback in its Supabase redirect configuration; if it does not, use the clipboard method.
+- **Import copied browser session** is the reliable fallback and does not require extracting a field from JSON.
+
+For clipboard import:
 
 1. Open a new **private/incognito browser window** and sign in at <https://leetgpu.com/>.
 2. Open the browser Developer Tools.
 3. In **Application** (Chrome/Edge) or **Storage** (Firefox), open Local Storage for `https://leetgpu.com`.
 4. Find the key whose name starts with `sb-` and ends with `-auth-token`.
-5. Copy only its `refresh_token` value. You may also copy the entire JSON value.
+5. Right-click its value and choose **Copy value**. Do not expand or edit the JSON.
 6. Close the private window **without clicking Sign Out**.
-7. In VS Code, run **LeetGPU: Import Session** and paste the value into the masked input.
+7. In VS Code, choose **Import copied browser session**; the extension reads the clipboard once and extracts `refresh_token` automatically.
 8. Accept **Clear Clipboard** after a successful import if the clipboard no longer needs the token.
 
 Use a private window so the website and extension do not keep refreshing the same session. Supabase refresh tokens rotate; long-term sharing of one session between independent clients can invalidate that session.
+
+The clipboard is read only after you explicitly choose the import action. It is never monitored in the background. **LeetGPU: Import Session Manually** remains available for raw tokens or complete JSON.
 
 Never paste a refresh token into source files, settings, chat, issues, screenshots, or logs. **LeetGPU: Disconnect** removes the encrypted session from VS Code without signing out other browser sessions.
 

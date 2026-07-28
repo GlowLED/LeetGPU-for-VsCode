@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- Added GitHub and Google browser sign-in using a VS Code callback and PKCE authorization-code exchange.
+- Added one-click clipboard import for complete Supabase session JSON, without manually locating `refresh_token`.
+- Kept manual token import as a fallback when LeetGPU has not allowlisted the VS Code OAuth callback.
+
 ## 0.1.4
 
 - Render unavailable accelerators as visible picker entries with disabled styling and block their selection.

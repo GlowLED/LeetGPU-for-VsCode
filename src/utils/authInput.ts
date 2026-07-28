@@ -13,6 +13,16 @@ export function extractRefreshToken(input: string): string | undefined {
   }
 }
 
+export function extractRefreshTokenFromJson(input: string): string | undefined {
+  const trimmed = input.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return undefined;
+  try {
+    return findRefreshToken(JSON.parse(trimmed));
+  } catch {
+    return undefined;
+  }
+}
+
 function findRefreshToken(value: unknown): string | undefined {
   if (!value || typeof value !== "object") {
     return undefined;

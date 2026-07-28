@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractRefreshToken } from "../src/utils/authInput";
+import { extractRefreshToken, extractRefreshTokenFromJson } from "../src/utils/authInput";
 
 describe("refresh token input", () => {
   it("accepts a raw token", () => {
@@ -15,5 +15,12 @@ describe("refresh token input", () => {
     expect(extractRefreshToken("  ")).toBeUndefined();
     expect(extractRefreshToken("{bad json")).toBeUndefined();
     expect(extractRefreshToken("{}")) .toBeUndefined();
+  });
+
+  it("requires structured JSON for clipboard imports", () => {
+    expect(extractRefreshTokenFromJson(JSON.stringify({ session: { refresh_token: "clipboard-token" } })))
+      .toBe("clipboard-token");
+    expect(extractRefreshTokenFromJson("raw-token")).toBeUndefined();
+    expect(extractRefreshTokenFromJson("{bad json")).toBeUndefined();
   });
 });
