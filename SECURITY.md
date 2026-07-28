@@ -10,8 +10,8 @@ Do not include LeetGPU access tokens, refresh tokens, submitted code, or persona
 - Only HTTPS problem links can be opened.
 - Service endpoints are fixed to LeetGPU and its current Supabase project.
 - Session values use VS Code encrypted `SecretStorage` and are redacted from errors.
-- Browser authentication uses PKCE, validates a random callback state, and never places refresh tokens in callback URLs.
 - Clipboard session import requires structured JSON and only runs after an explicit command.
+- Direct GitHub and Google browser callbacks are disabled while LeetGPU rejects the extension callback URL.
 - Submission connections are never automatically replayed after a disconnect.
 
 This unofficial integration depends on undocumented service contracts. Disable or uninstall the extension and remove its local session if unexpected authentication behavior occurs.

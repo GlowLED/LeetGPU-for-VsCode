@@ -53,16 +53,6 @@ export class AuthService implements vscode.Disposable {
     return session.user;
   }
 
-  public async completeAuthorizationCode(authCode: string, codeVerifier: string): Promise<AuthUser> {
-    if (!authCode || !codeVerifier) throw new AuthError("The browser sign-in callback was incomplete.");
-    const session = await this.exchangeSession("pkce", {
-      auth_code: authCode,
-      code_verifier: codeVerifier
-    });
-    await this.save(session);
-    return session.user;
-  }
-
   public async getUser(): Promise<AuthUser | undefined> {
     const session = await this.load();
     return session?.user;
@@ -120,21 +110,14 @@ export class AuthService implements vscode.Disposable {
   }
 
   private async exchangeRefreshToken(refreshToken: string): Promise<StoredSession> {
-    return this.exchangeSession("refresh_token", { refresh_token: refreshToken });
-  }
-
-  private async exchangeSession(
-    grantType: "refresh_token" | "pkce",
-    requestBody: Record<string, string>
-  ): Promise<StoredSession> {
-    const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=${grantType}`, {
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
       method: "POST",
       headers: {
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify({ refresh_token: refreshToken })
     });
 
     if (!response.ok) {

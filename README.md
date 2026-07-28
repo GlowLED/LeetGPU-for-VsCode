@@ -4,6 +4,39 @@ Solve [LeetGPU](https://leetgpu.com/) challenges without leaving VS Code. The ex
 
 > This community project is not affiliated with, endorsed by, or maintained by AlphaGPU or LeetGPU. The integration currently depends on web-client APIs that may change without notice.
 
+## 登录 LeetGPU（运行或提交前必读）
+
+> **GitHub 和 Google 的直接浏览器回调目前不可用，因此插件暂时不会显示这两个登录选项。** 当前支持“复制完整会话 JSON”和“手动输入 token”两种方式。推荐使用第一种，不需要自己从 JSON 中查找 `refresh_token`。
+
+### 方式一：复制完整会话 JSON（推荐）
+
+1. 新建一个浏览器的**无痕/隐私窗口**，打开 [leetgpu.com](https://leetgpu.com/) 并使用自己的 GitHub 或 Google 帐号登录。
+2. 登录成功后，停留在 LeetGPU 页面并打开开发者工具：
+   - Chrome、Edge：按 `F12`，选择 **Application（应用）**。
+   - Firefox：按 `F12`，选择 **Storage（存储）**。
+3. 在左侧依次展开 **Local Storage（本地存储）** → `https://leetgpu.com`。
+4. 找到名称以 `sb-` 开头、以 `-auth-token` 结尾的条目，例如 `sb-xxxxxxxx-auth-token`。
+5. 右键该条目的 **Value（值）**，选择 **Copy value（复制值）**。应复制整个 JSON 值，不要复制 key，也不要手动截取其中的 token。
+6. 直接关闭这个无痕/隐私窗口，**不要点击 LeetGPU 的 Sign Out**。点击 Sign Out 可能立即使刚复制的会话失效。
+7. 回到 VS Code，执行以下任一操作：
+   - 打开 LeetGPU 侧边栏，点击未登录的帐号项；或
+   - 按 `Ctrl/Cmd+Shift+P` 打开命令面板，运行 **LeetGPU: Sign In**。
+8. 选择 **Import copied browser session**。插件只会在此时读取一次剪贴板，并自动从完整 JSON 中提取 `refresh_token`。
+9. 出现 `Connected as ...` 表示登录成功。建议点击 **Clear Clipboard**；只有当剪贴板仍然是刚才导入的 JSON 时，插件才会将其清空。
+
+如果提示剪贴板中没有完整会话 JSON，请确认复制的是 `sb-…-auth-token` 条目的 **Value**，而不是条目名称、截图或开发者工具中被截断的预览文本。如果提示认证失败，请重新打开一个无痕窗口登录并复制最新值；不要复用已执行 Sign Out 的会话。
+
+### 方式二：手动输入 token
+
+1. 按照方式一的第 1–6 步取得 LeetGPU 会话。
+2. 在 VS Code 中运行 **LeetGPU: Sign In**，选择 **Paste a refresh token manually**；也可以直接运行 **LeetGPU: Import Session Manually**。
+3. 在密码输入框中粘贴以下任一种内容：
+   - 单独的原始 `refresh_token`；或
+   - 完整的 `sb-…-auth-token` JSON（插件同样会自动提取 token）。
+4. 按 Enter 验证会话，看到 `Connected as ...` 后即完成登录。
+
+插件会将会话保存在 VS Code 的加密 `SecretStorage` 中，不会写入工作区文件或日志。不要把会话 JSON 或 token 粘贴到源码、设置、聊天、Issue、截图或在线 JSON 工具中。**LeetGPU: Disconnect** 只会删除 VS Code 中保存的本地会话，不会让其他浏览器退出登录。
+
 ## Features
 
 - Browse, search, and filter the live LeetGPU challenge list.
@@ -29,30 +62,6 @@ When the first solution in a workspace is opened, the extension creates a versio
 The built-in completion, hover, and signature help works without third-party language extensions. Microsoft C/C++, Python with Pylance, and the official Mojo extension are suggested once and enhance semantic editing when installed; they are not required or installed automatically. Use **LeetGPU: Rebuild Language Support** if the generated cache is removed or damaged.
 
 The models intentionally cover common LeetGPU APIs rather than entire vendor SDKs. They suppress dependency-resolution noise while leaving genuine syntax and solution errors enabled. Explicit project-level `pyrightconfig.json`, `pyproject.toml`, or `c_cpp_properties.json` settings can override VS Code workspace analysis paths.
-
-## Connect your account
-
-Run **LeetGPU: Sign In** and choose one of these methods:
-
-- **Continue with GitHub/Google** opens LeetGPU's Supabase OAuth flow in your browser. It uses an authorization code with PKCE and returns to VS Code without copying a token. LeetGPU must allow the generated VS Code callback in its Supabase redirect configuration; if it does not, use the clipboard method.
-- **Import copied browser session** is the reliable fallback and does not require extracting a field from JSON.
-
-For clipboard import:
-
-1. Open a new **private/incognito browser window** and sign in at <https://leetgpu.com/>.
-2. Open the browser Developer Tools.
-3. In **Application** (Chrome/Edge) or **Storage** (Firefox), open Local Storage for `https://leetgpu.com`.
-4. Find the key whose name starts with `sb-` and ends with `-auth-token`.
-5. Right-click its value and choose **Copy value**. Do not expand or edit the JSON.
-6. Close the private window **without clicking Sign Out**.
-7. In VS Code, choose **Import copied browser session**; the extension reads the clipboard once and extracts `refresh_token` automatically.
-8. Accept **Clear Clipboard** after a successful import if the clipboard no longer needs the token.
-
-Use a private window so the website and extension do not keep refreshing the same session. Supabase refresh tokens rotate; long-term sharing of one session between independent clients can invalidate that session.
-
-The clipboard is read only after you explicitly choose the import action. It is never monitored in the background. **LeetGPU: Import Session Manually** remains available for raw tokens or complete JSON.
-
-Never paste a refresh token into source files, settings, chat, issues, screenshots, or logs. **LeetGPU: Disconnect** removes the encrypted session from VS Code without signing out other browser sessions.
 
 ## Usage
 

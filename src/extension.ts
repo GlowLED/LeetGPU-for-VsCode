@@ -8,14 +8,12 @@ import { ProblemPanel, showGlobalLeaderboardPanel } from "./providers/problemPan
 import { SolutionCodeLensProvider } from "./providers/solutionCodeLens";
 import { LeetGpuClient } from "./services/apiClient";
 import { AuthError, AuthService } from "./services/authService";
-import { BrowserAuthFlowError, BrowserAuthService } from "./services/browserAuthService";
 import { LanguageSupportManager } from "./services/languageSupportManager";
 import { SubmissionTransport } from "./services/submissionTransport";
 import { WorkspaceManager } from "./services/workspaceManager";
 import { solutionFileName } from "./utils/slug";
 import { acceleratorOptions, compatibleGpus } from "./utils/accelerators";
 import { extractRefreshTokenFromJson } from "./utils/authInput";
-import type { BrowserAuthProvider } from "./utils/browserAuth";
 import { redactSecrets } from "./utils/redact";
 
 const SELECTED_LANGUAGE_KEY = "leetgpu.selectedLanguage";
@@ -27,13 +25,12 @@ interface AcceleratorQuickPickItem extends vscode.QuickPickItem {
 }
 
 interface SignInQuickPickItem extends vscode.QuickPickItem {
-  action: BrowserAuthProvider | "clipboard" | "manual";
+  action: "clipboard" | "manual";
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const log = vscode.window.createOutputChannel("LeetGPU Log", { log: true });
   const auth = new AuthService(context.secrets);
-  const browserAuth = new BrowserAuthService(context.secrets, auth, context.extension.id);
   const api = new LeetGpuClient(auth);
   const workspace = new WorkspaceManager(context);
   const languageSupport = new LanguageSupportManager(context, log);
@@ -82,30 +79,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     log,
     auth,
-    browserAuth,
     languageSupport,
     { dispose: () => transport.dispose() },
     problem,
     solutionCodeLens,
     status,
     vscode.window.registerTreeDataProvider("leetgpu.challenges", tree),
-    vscode.window.registerUriHandler({
-      handleUri: async (uri) => {
-        try {
-          const user = await browserAuth.handleUri(uri);
-          if (user) {
-            await refreshAuthenticatedState();
-            await vscode.window.showInformationMessage(
-              `Connected as ${user.displayName ?? user.email ?? "LeetGPU user"}.`
-            );
-          }
-        } catch (error) {
-          const message = safeMessage(error);
-          log.warn(message);
-          await vscode.window.showErrorMessage(message);
-        }
-      }
-    }),
     vscode.window.registerWebviewViewProvider("leetgpu.console", consoleView, {
       webviewOptions: { retainContextWhenHidden: true }
     }),
@@ -209,20 +188,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   async function signIn(): Promise<void> {
     const picked = await vscode.window.showQuickPick<SignInQuickPickItem>([
       {
-        label: "$(github) Continue with GitHub",
-        description: "Browser sign-in",
-        detail: "No token copying. Requires LeetGPU to allow the VS Code OAuth callback.",
-        action: "github"
-      },
-      {
-        label: "$(globe) Continue with Google",
-        description: "Browser sign-in",
-        detail: "No token copying. Requires LeetGPU to allow the VS Code OAuth callback.",
-        action: "google"
-      },
-      {
         label: "$(clippy) Import copied browser session",
-        description: "Reliable fallback",
+        description: "Recommended",
         detail: "Copy the complete sb-…-auth-token value; the extension extracts refresh_token from its JSON.",
         action: "clipboard"
       },
@@ -233,36 +200,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }
     ], {
       title: "Sign in to LeetGPU",
-      placeHolder: "Use the same GitHub or Google provider as your LeetGPU account",
+      placeHolder: "Import the complete session JSON or enter a refresh token manually",
       matchOnDescription: true,
       matchOnDetail: true
     });
     if (!picked) return;
     if (picked.action === "clipboard") return importSessionFromClipboard();
-    if (picked.action === "manual") return importSessionManually();
-    await signInWithBrowser(picked.action);
-  }
-
-  async function signInWithBrowser(provider: BrowserAuthProvider): Promise<void> {
-    try {
-      await vscode.window.withProgress(
-        {
-          location: vscode.ProgressLocation.Notification,
-          title: `Waiting for LeetGPU ${provider === "github" ? "GitHub" : "Google"} sign-in…`,
-          cancellable: true
-        },
-        (_progress, cancellationToken) => browserAuth.signIn(provider, cancellationToken)
-      );
-    } catch (error) {
-      if (error instanceof BrowserAuthFlowError && error.reason === "canceled") return;
-      const choice = await vscode.window.showWarningMessage(
-        `${safeMessage(error)} LeetGPU may not yet allow the VS Code callback. You can import the complete browser session JSON instead.`,
-        "Import from Clipboard",
-        "Paste Manually"
-      );
-      if (choice === "Import from Clipboard") await importSessionFromClipboard();
-      if (choice === "Paste Manually") await importSessionManually();
-    }
+    return importSessionManually();
   }
 
   async function importSessionFromClipboard(): Promise<void> {

@@ -2,9 +2,9 @@
 
 ## 0.2.0
 
-- Added GitHub and Google browser sign-in using a VS Code callback and PKCE authorization-code exchange.
 - Added one-click clipboard import for complete Supabase session JSON, without manually locating `refresh_token`.
-- Kept manual token import as a fallback when LeetGPU has not allowlisted the VS Code OAuth callback.
+- Kept manual import for raw refresh tokens or complete session JSON.
+- Disabled GitHub and Google browser callback options because LeetGPU currently rejects the extension callback URL.
 
 ## 0.1.4
 

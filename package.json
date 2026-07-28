@@ -35,7 +35,6 @@
     "workspace"
   ],
   "activationEvents": [
-    "onUri",
     "onView:leetgpu.challenges",
     "onView:leetgpu.console",
     "onCommand:leetgpu.openChallenge",
