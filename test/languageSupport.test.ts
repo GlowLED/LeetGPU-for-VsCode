@@ -46,9 +46,19 @@ describe("offline language support", () => {
 
   it("provides core CUDA declarations", () => {
     const runtime = SUPPORT_ASSETS.find((asset) => asset.path.endsWith("cuda_runtime.h"))?.content ?? "";
-    for (const identifier of ["threadIdx", "blockIdx", "blockDim", "cudaDeviceSynchronize", "atomicAdd", "__shfl_down_sync"]) {
+    for (const identifier of [
+      "threadIdx",
+      "blockIdx",
+      "blockDim",
+      "__cudaPushCallConfiguration",
+      "cudaDeviceSynchronize",
+      "atomicAdd",
+      "__shfl_down_sync"
+    ]) {
       expect(runtime).toContain(identifier);
     }
+    expect(runtime).toContain("size_t sharedMem = 0");
+    expect(runtime).toContain("void *stream = 0");
   });
 });
 

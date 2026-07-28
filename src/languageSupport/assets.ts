@@ -1,4 +1,4 @@
-export const LANGUAGE_SUPPORT_VERSION = 2;
+export const LANGUAGE_SUPPORT_VERSION = 3;
 
 export interface SupportAsset {
   path: string;
@@ -41,6 +41,12 @@ struct dim3 {
   unsigned int x, y, z;
   constexpr dim3(unsigned int vx = 1, unsigned int vy = 1, unsigned int vz = 1) : x(vx), y(vy), z(vz) {}
 };
+extern "C" unsigned __cudaPushCallConfiguration(
+  dim3 gridDim,
+  dim3 blockDim,
+  size_t sharedMem = 0,
+  void *stream = 0
+);
 extern const uint3 threadIdx;
 extern const uint3 blockIdx;
 extern const dim3 blockDim;

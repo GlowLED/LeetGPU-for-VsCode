@@ -15,6 +15,12 @@ import { WorkspaceManager } from "./services/workspaceManager";
 import { solutionFileName } from "./utils/slug";
 import { acceleratorOptions, compatibleGpus } from "./utils/accelerators";
 import { extractRefreshTokenFromJson } from "./utils/authInput";
+import {
+  CUDA_EDITOR_LANGUAGE_ID,
+  editorLanguageIdForFile,
+  editorLanguageIdForSolution,
+  resolveAvailableEditorLanguage
+} from "./utils/editorLanguage";
 import { redactSecrets } from "./utils/redact";
 
 const SELECTED_LANGUAGE_KEY = "leetgpu.selectedLanguage";
@@ -43,6 +49,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   status.command = "leetgpu.selectAccelerator";
   const solutionCodeLens = new SolutionCodeLensProvider(workspace, selectedAccelerator);
   const readOnlyCode = new ReadOnlyCodeProvider();
+  const preparingDocuments = new Map<string, Promise<vscode.TextDocument>>();
   let currentChallenge: ChallengeDetail | undefined;
   let runFinished = true;
 
@@ -99,7 +106,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     ),
     openSubmission: async (submissionId) => openSubmissionCode(submissionId),
     openSolution: async (solutionId, fileName, content) => {
-      await readOnlyCode.show("solution", solutionId, fileName, content, languageIdForFile(fileName));
+      await readOnlyCode.show("solution", solutionId, fileName, content, editorLanguageIdForFile(fileName));
     }
   });
 
@@ -131,7 +138,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       webviewOptions: { retainContextWhenHidden: true }
     }),
     vscode.languages.registerCodeLensProvider(
-      [{ language: "cuda" }, { language: "python" }, { language: "mojo" }, { scheme: "file" }, { scheme: "vscode-remote" }],
+      [{ language: CUDA_EDITOR_LANGUAGE_ID }, { language: "python" }, { language: "mojo" }, { scheme: "file" }, { scheme: "vscode-remote" }],
       solutionCodeLens
     ),
     vscode.languages.registerCompletionItemProvider(
@@ -153,6 +160,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.window.onDidChangeActiveTextEditor(() => void updateEditorContext()),
     vscode.workspace.onDidOpenTextDocument((document) => {
       void ensureLanguageSupport(document).catch((error) => log.warn(safeMessage(error)));
+    }),
+    vscode.extensions.onDidChange(() => {
+      void Promise.all(vscode.workspace.textDocuments.map((document) => ensureLanguageSupport(document)))
+        .catch((error) => log.warn(safeMessage(error)));
     }),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("leetgpu.defaultAccelerator")) void updateEditorContext();
@@ -205,11 +216,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       currentChallenge = detail;
       const preferred = context.workspaceState.get<string>(SELECTED_LANGUAGE_KEY);
       const opened = await workspace.openChallenge(detail, preferred);
-      await languageSupport.ensureForSolution(opened.uri, opened.language);
+      const document = await prepareSolutionDocument(
+        await vscode.workspace.openTextDocument(opened.uri),
+        opened.language
+      );
       await context.workspaceState.update(SELECTED_LANGUAGE_KEY, opened.language);
       const accelerator = await compatibleAccelerator(opened.language);
       problem.show(detail, opened.language, accelerator);
-      await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(opened.uri), {
+      await vscode.window.showTextDocument(document, {
         viewColumn: vscode.ViewColumn.Two,
         preserveFocus: false,
         preview: false
@@ -219,10 +233,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   async function openSolutionFile(challenge: ChallengeDetail, language: string): Promise<void> {
     const opened = await workspace.openChallenge(challenge, language);
-    await languageSupport.ensureForSolution(opened.uri, opened.language);
+    const document = await prepareSolutionDocument(
+      await vscode.workspace.openTextDocument(opened.uri),
+      opened.language
+    );
     await context.workspaceState.update(SELECTED_LANGUAGE_KEY, opened.language);
     await compatibleAccelerator(opened.language);
-    await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(opened.uri), {
+    await vscode.window.showTextDocument(document, {
       viewColumn: vscode.ViewColumn.Two,
       preserveFocus: false,
       preview: false
@@ -333,7 +350,37 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   async function ensureLanguageSupport(document: vscode.TextDocument): Promise<void> {
     const active = await workspace.getActiveSolution(document);
-    if (active) await languageSupport.ensureForSolution(document.uri, active.language);
+    if (active) await prepareSolutionDocument(document, active.language);
+  }
+
+  async function prepareSolutionDocument(
+    document: vscode.TextDocument,
+    language: string
+  ): Promise<vscode.TextDocument> {
+    const key = document.uri.toString();
+    const pending = preparingDocuments.get(key);
+    if (pending) return pending;
+
+    const expectedLanguageId = editorLanguageIdForSolution(language);
+    const preparation = (async () => {
+      await languageSupport.ensureForSolution(document.uri, language);
+      if (!expectedLanguageId) return document;
+
+      const availableLanguages = await vscode.languages.getLanguages();
+      const effectiveLanguageId = resolveAvailableEditorLanguage(expectedLanguageId, availableLanguages);
+      const currentDocument = vscode.workspace.textDocuments.find(
+        (candidate) => candidate.uri.toString() === key
+      ) ?? document;
+      return currentDocument.languageId === effectiveLanguageId
+        ? currentDocument
+        : vscode.languages.setTextDocumentLanguage(currentDocument, effectiveLanguageId);
+    })();
+    preparingDocuments.set(key, preparation);
+    try {
+      return await preparation;
+    } finally {
+      if (preparingDocuments.get(key) === preparation) preparingDocuments.delete(key);
+    }
   }
 
   async function disconnect(): Promise<void> {
@@ -584,7 +631,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const file = data.files?.find((candidate) => typeof candidate.content === "string");
     if (!file || typeof file.content !== "string") throw new Error("The submission does not contain readable code.");
     const fileName = typeof file.name === "string" ? file.name : "solution.txt";
-    await readOnlyCode.show("submission", submissionId, fileName, file.content, languageIdForFile(fileName));
+    await readOnlyCode.show("submission", submissionId, fileName, file.content, editorLanguageIdForFile(fileName));
   }
 
   async function showAssemblyForActiveSolution(): Promise<void> {
@@ -703,13 +750,6 @@ function safeMessage(error: unknown): string {
   if (error instanceof AuthError) return `LeetGPU authentication: ${error.message}`;
   if (error instanceof Error) return redactSecrets(error.message);
   return "LeetGPU operation failed.";
-}
-
-function languageIdForFile(name: string): string {
-  if (name.endsWith(".cu")) return "cpp";
-  if (name.endsWith(".py")) return "python";
-  if (name.endsWith(".mojo")) return "mojo";
-  return "plaintext";
 }
 
 function languageLabel(language: string): string {

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.9
+
+- Force LeetGPU CUDA solutions and code previews to use VS Code's `cuda-cpp` language mode so kernel launches such as `kernel<<<blocks, threads>>>(...)` are not parsed as invalid ordinary C++ expressions. The generated CUDA analysis header now supplies the launch-configuration declaration required by Microsoft C/C++, concurrent document-open events are deduplicated, and environments without the optional C/C++ extension retain `cpp` syntax highlighting until the CUDA dialect becomes available.
+
 ## 0.4.8
 
 - Scope responsive challenge-diagram styles to sanitized LeetGPU SVGs so they no longer affect KaTeX's internal matrix delimiters.

@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { resolveAvailableEditorLanguage } from "../utils/editorLanguage";
 
 export const READ_ONLY_CODE_SCHEME = "leetgpu-code";
 
@@ -63,11 +64,7 @@ export class ReadOnlyCodeProvider implements vscode.TextDocumentContentProvider,
     this.changedEmitter.fire(uri);
 
     const availableLanguages = await vscode.languages.getLanguages();
-    const effectiveLanguage = availableLanguages.includes(preview.languageId)
-      ? preview.languageId
-      : preview.languageId === "mojo" && availableLanguages.includes("python")
-        ? "python"
-        : "plaintext";
+    const effectiveLanguage = resolveAvailableEditorLanguage(preview.languageId, availableLanguages);
     let document = await vscode.workspace.openTextDocument(uri);
     if (document.languageId !== effectiveLanguage) {
       document = await vscode.languages.setTextDocumentLanguage(document, effectiveLanguage);
