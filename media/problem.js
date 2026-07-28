@@ -18,6 +18,7 @@ if (typeof window.renderMathInElement === 'function') {
 
 document.getElementById('run').addEventListener('click', () => vscode.postMessage({ command: 'action', action: 'run' }));
 document.getElementById('submit').addEventListener('click', () => vscode.postMessage({ command: 'action', action: 'submit' }));
+gpu.addEventListener('click', () => vscode.postMessage({ command: 'selectAccelerator' }));
 language.addEventListener('change', () => vscode.postMessage({ command: 'openLanguage', language: language.value }));
 document.querySelectorAll('nav button').forEach((button) => button.addEventListener('click', () => {
   currentTab = button.dataset.tab;
@@ -46,9 +47,9 @@ window.addEventListener('message', ({ data }) => {
       const option = document.createElement('option');
       option.value = value; option.textContent = value; option.selected = value === previous; return option;
     }));
-    gpu.textContent = data.accelerator;
+    setAccelerator(data.accelerator);
   }
-  if (data.type === 'accelerator') gpu.textContent = data.accelerator;
+  if (data.type === 'accelerator') setAccelerator(data.accelerator);
   if (data.type === 'tabData') renderRows(data.tab, data.data);
   if (data.type === 'error') showError(data.message);
   if (data.type === 'invalidate' && data.tabs.includes(currentTab) && currentTab !== 'problem') {
@@ -77,4 +78,5 @@ function renderRows(tab, payload) {
   target.replaceChildren(table);
 }
 function showError(message) { toast.textContent = message; toast.hidden = false; setTimeout(() => { toast.hidden = true; }, 6000); }
+function setAccelerator(accelerator) { gpu.textContent = `Accelerator: ${accelerator}`; }
 vscode.postMessage({ command: 'ready' });

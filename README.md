@@ -9,7 +9,8 @@ Solve [LeetGPU](https://leetgpu.com/) challenges without leaving VS Code. The ex
 - Browse, search, and filter the live LeetGPU challenge list.
 - Read sanitized problem statements beside a native VS Code editor.
 - Create separate solution files for CUDA, Triton, PyTorch, JAX, CuTe DSL, and Mojo.
-- Select a compatible accelerator and stream Run/Submit output into the LeetGPU Console.
+- Edit without installing CUDA, Torch, Triton, JAX, CuTe, or Mojo: generated analysis models remove dependency errors and provide common API completion, hover, and signature help.
+- Select an accelerator from either the problem panel or solution CodeLens and stream Run/Submit output into the LeetGPU Console.
 - Cancel active runs, inspect submission history, and view challenge/global leaderboards.
 - Work in local folders, WSL, Remote SSH, and Dev Containers.
 
@@ -20,6 +21,14 @@ leetgpu/<challenge-id>-<slug>/<language>/solution.*
 ```
 
 Existing solution files are never overwritten unless you explicitly run **LeetGPU: Reset Solution to Latest Starter** and confirm the warning.
+
+## Dependency-free language support
+
+When the first solution in a workspace is opened, the extension creates a versioned cache under `leetgpu/.support/` (or the configured solution directory) and adds that cache to the relevant VS Code analysis paths. It contains minimal CUDA headers, Python type/source models, and Mojo compatibility imports based on the APIs used by LeetGPU starters. The cache is hidden from Explorer and Search and is never included in Run or Submit requests.
+
+The built-in completion, hover, and signature help works without third-party language extensions. Microsoft C/C++, Python with Pylance, and the official Mojo extension are suggested once and enhance semantic editing when installed; they are not required or installed automatically. Use **LeetGPU: Rebuild Language Support** if the generated cache is removed or damaged.
+
+The models intentionally cover common LeetGPU APIs rather than entire vendor SDKs. They suppress dependency-resolution noise while leaving genuine syntax and solution errors enabled. Explicit project-level `pyrightconfig.json`, `pyproject.toml`, or `c_cpp_properties.json` settings can override VS Code workspace analysis paths.
 
 ## Connect your account
 
@@ -42,7 +51,7 @@ Never paste a refresh token into source files, settings, chat, issues, screensho
 
 1. Open the LeetGPU Activity Bar view and select a challenge.
 2. Choose a language in the problem panel. The native solution file opens beside it.
-3. Select a GPU from the status bar or **LeetGPU: Select GPU**.
+3. Select an accelerator from the problem panel, solution CodeLens, status bar, or **LeetGPU: Select Accelerator**. The picker keeps every GPU and TPU visible; devices that do not support the current language or account are shown as unavailable. JAX runs on TPU, while the other languages run on GPU. H100, H200, and B200 require an active LeetGPU Pro subscription.
 4. Use CodeLens, editor title buttons, `Ctrl/Cmd+'` to run, or `Ctrl/Cmd+Enter` to submit.
 5. Inspect streaming output in the LeetGPU Console panel.
 
@@ -55,6 +64,8 @@ New submissions are private by default. Change `leetgpu.submissionVisibility` if
 | `leetgpu.solutionDirectory` | `leetgpu` | Workspace-relative solution root |
 | `leetgpu.defaultAccelerator` | `T4` | Preferred accelerator when compatible |
 | `leetgpu.submissionVisibility` | `private` | Visibility of new submissions |
+| `leetgpu.languageSupport.enabled` | `true` | Generate offline dependency models and provide editor assistance |
+| `leetgpu.languageSupport.suggestExtensions` | `true` | Suggest compatible full language extensions once |
 
 Service URLs are intentionally not configurable: redirecting them could leak account credentials or submitted source code.
 
@@ -71,7 +82,7 @@ Press `F5` in VS Code to launch an Extension Development Host. Production submis
 
 ## Content and licensing
 
-This repository contains only extension code under the MIT License. It does not bundle, mirror, or ship LeetGPU challenges or starter templates. Those are fetched on demand from LeetGPU and remain subject to the [LeetGPU challenge repository license](https://github.com/AlphaGPU/leetgpu-challenges).
+This repository contains extension code and clean-room, minimal analysis declarations under the MIT License. It does not bundle, mirror, or ship LeetGPU challenges, starter templates, or vendor SDK implementations. Challenges are fetched on demand from LeetGPU and remain subject to the [LeetGPU challenge repository license](https://github.com/AlphaGPU/leetgpu-challenges).
 
 Before publishing this integration to the Marketplace, the maintainer should obtain confirmation from LeetGPU covering use of its undocumented web APIs, starter templates, and brand name. Until then, treat generated VSIX files as development builds.
 

@@ -3,29 +3,38 @@ import { SUPPORTED_LANGUAGE_LABELS } from "./constants";
 import type { ChallengeDetail, ChallengeSummary, SubmissionEvent, SubmissionPayload } from "./models";
 import { ChallengeTreeProvider } from "./providers/challengeTree";
 import { ConsoleViewProvider } from "./providers/consoleView";
+import { LeetGpuLanguageFeatures } from "./providers/languageFeatures";
 import { ProblemPanel, showGlobalLeaderboardPanel } from "./providers/problemPanel";
 import { SolutionCodeLensProvider } from "./providers/solutionCodeLens";
 import { LeetGpuClient } from "./services/apiClient";
 import { AuthError, AuthService } from "./services/authService";
+import { LanguageSupportManager } from "./services/languageSupportManager";
 import { SubmissionTransport } from "./services/submissionTransport";
 import { WorkspaceManager } from "./services/workspaceManager";
 import { solutionFileName } from "./utils/slug";
-import { compatibleGpus } from "./utils/accelerators";
+import { acceleratorOptions, compatibleGpus } from "./utils/accelerators";
 import { redactSecrets } from "./utils/redact";
 
 const SELECTED_LANGUAGE_KEY = "leetgpu.selectedLanguage";
 const SELECTED_ACCELERATOR_KEY = "leetgpu.selectedAccelerator";
+
+interface AcceleratorQuickPickItem extends vscode.QuickPickItem {
+  accelerator?: string;
+}
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const log = vscode.window.createOutputChannel("LeetGPU Log", { log: true });
   const auth = new AuthService(context.secrets);
   const api = new LeetGpuClient(auth);
   const workspace = new WorkspaceManager(context);
+  const languageSupport = new LanguageSupportManager(context, log);
+  const languageFeatures = new LeetGpuLanguageFeatures(workspace);
   const transport = new SubmissionTransport();
   const tree = new ChallengeTreeProvider(api, auth);
   const consoleView = new ConsoleViewProvider(context.extensionUri);
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
   status.command = "leetgpu.selectAccelerator";
+  const solutionCodeLens = new SolutionCodeLensProvider(workspace, selectedAccelerator);
   let currentChallenge: ChallengeDetail | undefined;
   let runFinished = true;
 
@@ -34,6 +43,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (!currentChallenge) throw new Error("No LeetGPU challenge is open.");
       await openSolutionFile(currentChallenge, language);
     },
+    selectAccelerator: async (language) => selectAccelerator(language),
     run: async (action) => runOrSubmit(action),
     loadSubmissions: async (language) => {
       if (!currentChallenge) throw new Error("No LeetGPU challenge is open.");
@@ -63,8 +73,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     log,
     auth,
+    languageSupport,
     { dispose: () => transport.dispose() },
     problem,
+    solutionCodeLens,
     status,
     vscode.window.registerTreeDataProvider("leetgpu.challenges", tree),
     vscode.window.registerWebviewViewProvider("leetgpu.console", consoleView, {
@@ -72,11 +84,34 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     vscode.languages.registerCodeLensProvider(
       [{ language: "cuda" }, { language: "python" }, { language: "mojo" }, { scheme: "file" }, { scheme: "vscode-remote" }],
-      new SolutionCodeLensProvider(workspace)
+      solutionCodeLens
+    ),
+    vscode.languages.registerCompletionItemProvider(
+      [{ scheme: "file" }, { scheme: "vscode-remote" }],
+      languageFeatures,
+      ".",
+      "<"
+    ),
+    vscode.languages.registerHoverProvider(
+      [{ scheme: "file" }, { scheme: "vscode-remote" }],
+      languageFeatures
+    ),
+    vscode.languages.registerSignatureHelpProvider(
+      [{ scheme: "file" }, { scheme: "vscode-remote" }],
+      languageFeatures,
+      "(",
+      ","
     ),
     vscode.window.onDidChangeActiveTextEditor(() => void updateEditorContext()),
+    vscode.workspace.onDidOpenTextDocument((document) => {
+      void ensureLanguageSupport(document).catch((error) => log.warn(safeMessage(error)));
+    }),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("leetgpu.defaultAccelerator")) void updateEditorContext();
+      void languageSupport.handleConfigurationChange(event).catch((error) => log.warn(safeMessage(error)));
+      if (event.affectsConfiguration("leetgpu.languageSupport.enabled") && vscode.window.activeTextEditor) {
+        void ensureLanguageSupport(vscode.window.activeTextEditor.document).catch((error) => log.warn(safeMessage(error)));
+      }
     })
   );
 
@@ -101,8 +136,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   register("leetgpu.showLeaderboard", () => showCurrentTab("leaderboard"));
   register("leetgpu.showGlobalLeaderboard", showGlobalLeaderboard);
   register("leetgpu.resetSolution", resetSolution);
+  register("leetgpu.rebuildLanguageSupport", async () => {
+    await languageSupport.rebuild(vscode.window.activeTextEditor?.document.uri);
+    vscode.window.showInformationMessage("LeetGPU language support rebuilt.");
+  });
 
   await updateEditorContext();
+  if (vscode.window.activeTextEditor) {
+    await ensureLanguageSupport(vscode.window.activeTextEditor.document).catch((error) => log.warn(safeMessage(error)));
+  }
   void tree.refresh().catch((error) => log.warn(safeMessage(error)));
 
   async function openChallenge(summary: ChallengeSummary): Promise<void> {
@@ -111,6 +153,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       currentChallenge = detail;
       const preferred = context.workspaceState.get<string>(SELECTED_LANGUAGE_KEY);
       const opened = await workspace.openChallenge(detail, preferred);
+      await languageSupport.ensureForSolution(opened.uri, opened.language);
       await context.workspaceState.update(SELECTED_LANGUAGE_KEY, opened.language);
       const accelerator = await compatibleAccelerator(opened.language);
       problem.show(detail, opened.language, accelerator);
@@ -124,6 +167,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   async function openSolutionFile(challenge: ChallengeDetail, language: string): Promise<void> {
     const opened = await workspace.openChallenge(challenge, language);
+    await languageSupport.ensureForSolution(opened.uri, opened.language);
     await context.workspaceState.update(SELECTED_LANGUAGE_KEY, opened.language);
     await compatibleAccelerator(opened.language);
     await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(opened.uri), {
@@ -166,6 +210,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     });
   }
 
+  async function ensureLanguageSupport(document: vscode.TextDocument): Promise<void> {
+    const active = await workspace.getActiveSolution(document);
+    if (active) await languageSupport.ensureForSolution(document.uri, active.language);
+  }
+
   async function disconnect(): Promise<void> {
     const confirmed = await vscode.window.showWarningMessage(
       "Disconnect this VS Code extension? This only removes the local encrypted session and does not sign you out of leetgpu.com.",
@@ -174,6 +223,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     );
     if (confirmed !== "Disconnect") return;
     await auth.disconnect();
+    const active = await workspace.getActiveSolution();
+    if (active) {
+      await compatibleAccelerator(active.language).catch((error) => {
+        log.warn(`Could not refresh accelerator access after disconnecting: ${safeMessage(error)}`);
+      });
+    }
     tree.invalidate();
     vscode.window.showInformationMessage("LeetGPU session removed from VS Code.");
   }
@@ -260,37 +315,79 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     else vscode.window.showInformationMessage("No LeetGPU run is active.");
   }
 
-  async function selectAccelerator(): Promise<void> {
-    const active = await workspace.getActiveSolution();
-    const language = active?.language ?? context.workspaceState.get<string>(SELECTED_LANGUAGE_KEY) ?? "cuda";
-    const response = await api.getAccelerators();
-    const compatible = compatibleGpus(response.accelerators, response.supportedLanguages, language);
+  async function selectAccelerator(languageOverride?: string): Promise<void> {
+    const active = languageOverride ? undefined : await workspace.getActiveSolution();
+    const language = languageOverride
+      ?? active?.language
+      ?? context.workspaceState.get<string>(SELECTED_LANGUAGE_KEY)
+      ?? "cuda";
+    const [response, hasPaidAccess] = await Promise.all([
+      api.getAccelerators(),
+      hasPaidAcceleratorAccess()
+    ]);
+    const options = acceleratorOptions(
+      response.accelerators,
+      response.supportedLanguages,
+      language,
+      hasPaidAccess
+    );
+    const compatible = options.filter((option) => option.compatible);
     if (!compatible.length) throw new Error(`No LeetGPU accelerator supports ${language}.`);
     const current = selectedAccelerator();
-    const pick = await vscode.window.showQuickPick(
-      compatible.map((gpu) => ({ label: gpu, description: gpu === current ? "Current" : undefined })),
-      { title: `Select a LeetGPU accelerator for ${language}` }
-    );
-    if (!pick) return;
-    await context.globalState.update(SELECTED_ACCELERATOR_KEY, pick.label);
-    problem.updateAccelerator(pick.label);
+    const items: AcceleratorQuickPickItem[] = options.map((option) => option.compatible
+      ? {
+          label: option.name,
+          accelerator: option.name,
+          description: option.name === current ? "Current" : undefined
+        }
+      : {
+          kind: vscode.QuickPickItemKind.Separator,
+          label: `${option.name} — ${option.unavailableReason ?? `unavailable for ${language}`}`
+        });
+    const pick = await vscode.window.showQuickPick(items, {
+      title: `Select a LeetGPU accelerator for ${language}`,
+      placeHolder: "Unavailable accelerators are shown in the list but cannot be selected."
+    });
+    if (!pick?.accelerator) return;
+    await context.globalState.update(SELECTED_ACCELERATOR_KEY, pick.accelerator);
+    problem.updateAccelerator(pick.accelerator);
+    solutionCodeLens.refresh();
     await updateEditorContext();
   }
 
   async function compatibleAccelerator(language: string): Promise<string> {
-    const response = await api.getAccelerators();
-    const compatible = compatibleGpus(response.accelerators, response.supportedLanguages, language);
+    const [response, hasPaidAccess] = await Promise.all([
+      api.getAccelerators(),
+      hasPaidAcceleratorAccess()
+    ]);
+    const compatible = compatibleGpus(
+      response.accelerators,
+      response.supportedLanguages,
+      language,
+      hasPaidAccess
+    );
     if (!compatible.length) throw new Error(`No LeetGPU accelerator supports ${language}.`);
     const preferred = selectedAccelerator();
     const selected = compatible.includes(preferred) ? preferred : compatible[0]!;
     if (selected !== preferred) await context.globalState.update(SELECTED_ACCELERATOR_KEY, selected);
     problem.updateAccelerator(selected);
+    solutionCodeLens.refresh();
     return selected;
   }
 
   function selectedAccelerator(): string {
     return context.globalState.get<string>(SELECTED_ACCELERATOR_KEY)
       ?? vscode.workspace.getConfiguration("leetgpu").get<string>("defaultAccelerator", "T4");
+  }
+
+  async function hasPaidAcceleratorAccess(): Promise<boolean> {
+    if (!(await auth.isConnected())) return false;
+    try {
+      return await api.hasActiveSubscription();
+    } catch (error) {
+      log.warn(`Could not determine LeetGPU subscription status: ${safeMessage(error)}`);
+      return false;
+    }
   }
 
   async function showCurrentTab(tab: "submissions" | "leaderboard"): Promise<void> {
@@ -342,6 +439,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   async function updateEditorContext(): Promise<void> {
     const active = await workspace.getActiveSolution();
     await vscode.commands.executeCommand("setContext", "leetgpu.activeSolution", Boolean(active));
+    solutionCodeLens.refresh();
     if (active) {
       status.text = `$(server-environment) LeetGPU: ${selectedAccelerator()}`;
       status.tooltip = `${active.title} · ${active.language}`;

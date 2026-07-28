@@ -2,7 +2,7 @@
   "name": "leetgpu",
   "displayName": "LeetGPU for VS Code (Unofficial)",
   "description": "Solve LeetGPU challenges from VS Code with native files, remote execution, submissions, and leaderboards.",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "publisher": "glowled",
   "license": "MIT",
   "private": true,
@@ -39,7 +39,9 @@
     "onView:leetgpu.console",
     "onCommand:leetgpu.openChallenge",
     "onCommand:leetgpu.run",
-    "onCommand:leetgpu.submit"
+    "onCommand:leetgpu.submit",
+    "onCommand:leetgpu.rebuildLanguageSupport",
+    "workspaceContains:**/.leetgpu.json"
   ],
   "main": "./dist/extension.js",
   "files": [
@@ -98,11 +100,12 @@
       { "command": "leetgpu.run", "title": "LeetGPU: Run", "icon": "$(play)" },
       { "command": "leetgpu.submit", "title": "LeetGPU: Submit", "icon": "$(cloud-upload)" },
       { "command": "leetgpu.cancel", "title": "LeetGPU: Cancel Active Run", "icon": "$(debug-stop)" },
-      { "command": "leetgpu.selectAccelerator", "title": "LeetGPU: Select GPU", "icon": "$(server-environment)" },
+      { "command": "leetgpu.selectAccelerator", "title": "LeetGPU: Select Accelerator", "icon": "$(server-environment)" },
       { "command": "leetgpu.showSubmissions", "title": "LeetGPU: Show Submissions" },
       { "command": "leetgpu.showLeaderboard", "title": "LeetGPU: Show Challenge Leaderboard" },
       { "command": "leetgpu.showGlobalLeaderboard", "title": "LeetGPU: Show Global Leaderboard" },
-      { "command": "leetgpu.resetSolution", "title": "LeetGPU: Reset Solution to Latest Starter" }
+      { "command": "leetgpu.resetSolution", "title": "LeetGPU: Reset Solution to Latest Starter" },
+      { "command": "leetgpu.rebuildLanguageSupport", "title": "LeetGPU: Rebuild Language Support" }
     ],
     "menus": {
       "view/title": [
@@ -131,13 +134,23 @@
         "leetgpu.defaultAccelerator": {
           "type": "string",
           "default": "T4",
-          "description": "Preferred LeetGPU accelerator. Falls back to the first compatible accelerator returned by the service."
+          "description": "Preferred LeetGPU accelerator. Falls back based on language, GPU/TPU compatibility, and account access."
         },
         "leetgpu.submissionVisibility": {
           "type": "string",
           "enum": ["private", "public"],
           "default": "private",
           "description": "Whether new submissions are public on LeetGPU."
+        },
+        "leetgpu.languageSupport.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Generate dependency-free CUDA/Python/Mojo analysis models and provide LeetGPU completion, hover, and signature help."
+        },
+        "leetgpu.languageSupport.suggestExtensions": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a one-time suggestion for compatible C/C++, Python/Pylance, or Mojo language extensions."
         }
       }
     }

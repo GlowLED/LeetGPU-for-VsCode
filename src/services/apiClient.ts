@@ -78,6 +78,11 @@ export class LeetGpuClient {
     return typeof body.displayName === "string" ? body.displayName : undefined;
   }
 
+  public async hasActiveSubscription(): Promise<boolean> {
+    const body = await this.getJson("/api/v1/me/billing/subscription-status", true) as { active?: unknown };
+    return body.active === true;
+  }
+
   private async getJson(path: string, authenticated: boolean): Promise<unknown> {
     let token = authenticated ? await this.auth.getAccessToken() : undefined;
     let response = await request(path, token);

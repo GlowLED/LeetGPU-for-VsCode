@@ -5,6 +5,7 @@ h1 { display: inline; font-size: 20px; margin: 0 10px 0 0; }
 .controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 button, select { color: var(--vscode-button-secondaryForeground); background: var(--vscode-button-secondaryBackground); border: 1px solid var(--vscode-button-border, transparent); padding: 5px 10px; cursor: pointer; }
 button:hover { background: var(--vscode-button-secondaryHoverBackground); }
+#gpu { white-space: nowrap; }
 button.primary { color: var(--vscode-button-foreground); background: var(--vscode-button-background); }
 nav { display: flex; gap: 4px; padding: 8px 20px 0; border-bottom: 1px solid var(--vscode-panel-border); }
 nav button { background: transparent; border: 0; border-bottom: 2px solid transparent; }
