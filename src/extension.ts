@@ -9,12 +9,14 @@ import { READ_ONLY_CODE_SCHEME, ReadOnlyCodeProvider } from "./providers/readOnl
 import { SolutionCodeLensProvider } from "./providers/solutionCodeLens";
 import { LeetGpuClient } from "./services/apiClient";
 import { AuthError, AuthService } from "./services/authService";
+import { BrowserAuthFlowError, BrowserAuthService } from "./services/browserAuthService";
 import { LanguageSupportManager } from "./services/languageSupportManager";
 import { SubmissionTransport } from "./services/submissionTransport";
 import { WorkspaceManager } from "./services/workspaceManager";
 import { solutionFileName } from "./utils/slug";
 import { acceleratorOptions, compatibleGpus } from "./utils/accelerators";
 import { extractRefreshTokenFromJson } from "./utils/authInput";
+import type { BrowserAuthProvider } from "./utils/browserAuth";
 import {
   CUDA_EDITOR_LANGUAGE_ID,
   editorLanguageIdForFile,
@@ -32,18 +34,25 @@ interface AcceleratorQuickPickItem extends vscode.QuickPickItem {
 }
 
 interface SignInQuickPickItem extends vscode.QuickPickItem {
-  action: "clipboard" | "manual";
+  action: BrowserAuthProvider | "clipboard" | "manual";
 }
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const log = vscode.window.createOutputChannel("LeetGPU Log", { log: true });
   const auth = new AuthService(context.secrets);
+  const browserAuth = new BrowserAuthService(
+    auth,
+    vscode.Uri.joinPath(context.globalStorageUri, "browser-auth-profile").fsPath
+  );
   const api = new LeetGpuClient(auth);
   const workspace = new WorkspaceManager(context);
   const languageSupport = new LanguageSupportManager(context, log);
   const languageFeatures = new LeetGpuLanguageFeatures(workspace);
   const transport = new SubmissionTransport();
   const tree = new ChallengeTreeProvider(api, auth);
+  const challengeTreeView = vscode.window.createTreeView("leetgpu.challenges", {
+    treeDataProvider: tree
+  });
   const consoleView = new ConsoleViewProvider(context.extensionUri);
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
   status.command = "leetgpu.selectAccelerator";
@@ -51,6 +60,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const readOnlyCode = new ReadOnlyCodeProvider();
   const preparingDocuments = new Map<string, Promise<vscode.TextDocument>>();
   let currentChallenge: ChallengeDetail | undefined;
+  let openingChallengeId: number | undefined;
   let runFinished = true;
 
   const problem = new ProblemPanel(context.extensionUri, {
@@ -126,13 +136,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     log,
     auth,
+    browserAuth,
     languageSupport,
     { dispose: () => transport.dispose() },
     problem,
     solutionCodeLens,
     readOnlyCode,
     status,
-    vscode.window.registerTreeDataProvider("leetgpu.challenges", tree),
+    challengeTreeView,
     vscode.workspace.registerTextDocumentContentProvider(READ_ONLY_CODE_SCHEME, readOnlyCode),
     vscode.window.registerWebviewViewProvider("leetgpu.console", consoleView, {
       webviewOptions: { retainContextWhenHidden: true }
@@ -189,6 +200,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   register("leetgpu.importSessionFromClipboard", importSessionFromClipboard);
   register("leetgpu.importSession", importSessionManually);
   register("leetgpu.disconnect", disconnect);
+  register("leetgpu.resetBrowserSignInProfile", resetBrowserSignInProfile);
   register("leetgpu.run", () => runOrSubmit("run"));
   register("leetgpu.submit", () => runOrSubmit("submit"));
   register("leetgpu.cancel", cancelActiveRun);
@@ -208,27 +220,45 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   if (vscode.window.activeTextEditor) {
     await ensureLanguageSupport(vscode.window.activeTextEditor.document).catch((error) => log.warn(safeMessage(error)));
   }
-  void tree.refresh().catch((error) => log.warn(safeMessage(error)));
+  void tree.refresh()
+    .then(() => currentChallenge && revealChallenge(currentChallenge.id))
+    .catch((error) => log.warn(safeMessage(error)));
 
   async function openChallenge(summary: ChallengeSummary): Promise<void> {
-    await withProgress(`Opening ${summary.title}…`, async () => {
-      const detail = await api.getChallenge(summary.id);
-      currentChallenge = detail;
-      const preferred = context.workspaceState.get<string>(SELECTED_LANGUAGE_KEY);
-      const opened = await workspace.openChallenge(detail, preferred);
-      const document = await prepareSolutionDocument(
-        await vscode.workspace.openTextDocument(opened.uri),
-        opened.language
-      );
-      await context.workspaceState.update(SELECTED_LANGUAGE_KEY, opened.language);
-      const accelerator = await compatibleAccelerator(opened.language);
-      problem.show(detail, opened.language, accelerator);
-      await vscode.window.showTextDocument(document, {
-        viewColumn: vscode.ViewColumn.Two,
-        preserveFocus: false,
-        preview: false
+    if (currentChallenge?.id === summary.id || openingChallengeId === summary.id) {
+      await revealChallenge(summary.id);
+      return;
+    }
+    openingChallengeId = summary.id;
+    try {
+      await withProgress(`Opening ${summary.title}…`, async () => {
+        const detail = await api.getChallenge(summary.id);
+        const preferred = context.workspaceState.get<string>(SELECTED_LANGUAGE_KEY);
+        const opened = await workspace.openChallenge(detail, preferred);
+        const document = await prepareSolutionDocument(
+          await vscode.workspace.openTextDocument(opened.uri),
+          opened.language
+        );
+        await context.workspaceState.update(SELECTED_LANGUAGE_KEY, opened.language);
+        const accelerator = await compatibleAccelerator(opened.language);
+        currentChallenge = detail;
+        problem.show(detail, opened.language, accelerator);
+        await vscode.window.showTextDocument(document, {
+          viewColumn: vscode.ViewColumn.Two,
+          preserveFocus: false,
+          preview: false
+        });
+        await revealChallenge(summary.id);
       });
-    });
+    } finally {
+      if (openingChallengeId === summary.id) openingChallengeId = undefined;
+    }
+  }
+
+  async function revealChallenge(challengeId: number): Promise<void> {
+    const node = tree.getChallengeNode(challengeId);
+    if (!node) return;
+    await challengeTreeView.reveal(node, { select: true, focus: false });
   }
 
   async function openSolutionFile(challenge: ChallengeDetail, language: string): Promise<void> {
@@ -249,8 +279,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   async function signIn(): Promise<void> {
     const picked = await vscode.window.showQuickPick<SignInQuickPickItem>([
       {
+        label: "$(github) Continue with GitHub",
+        description: "Automatic browser sign-in",
+        detail: "Uses a dedicated browser profile and imports the LeetGPU session automatically.",
+        action: "github"
+      },
+      {
+        label: "$(globe) Continue with Google",
+        description: "Automatic browser sign-in",
+        detail: "Uses a dedicated browser profile and imports the LeetGPU session automatically.",
+        action: "google"
+      },
+      {
         label: "$(clippy) Import copied browser session",
-        description: "Recommended",
+        description: "Fallback",
         detail: "Copy the complete sb-…-auth-token value; the extension extracts refresh_token from its JSON.",
         action: "clipboard"
       },
@@ -261,13 +303,40 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       }
     ], {
       title: "Sign in to LeetGPU",
-      placeHolder: "Import the complete session JSON or enter a refresh token manually",
+      placeHolder: "Continue with the same GitHub or Google account you use on LeetGPU",
       matchOnDescription: true,
       matchOnDetail: true
     });
     if (!picked) return;
     if (picked.action === "clipboard") return importSessionFromClipboard();
-    return importSessionManually();
+    if (picked.action === "manual") return importSessionManually();
+    return signInWithBrowser(picked.action);
+  }
+
+  async function signInWithBrowser(provider: BrowserAuthProvider): Promise<void> {
+    try {
+      const user = await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Complete LeetGPU ${provider === "github" ? "GitHub" : "Google"} sign-in in the dedicated browser…`,
+          cancellable: true
+        },
+        (_progress, cancellationToken) => browserAuth.signIn(provider, cancellationToken)
+      );
+      refreshAuthenticatedStateInBackground();
+      await vscode.window.showInformationMessage(
+        `Connected as ${user.displayName ?? user.email ?? "LeetGPU user"}.`
+      );
+    } catch (error) {
+      if (error instanceof BrowserAuthFlowError && error.reason === "canceled") return;
+      const choice = await vscode.window.showWarningMessage(
+        `${safeMessage(error)} You can import a browser session instead.`,
+        "Import from Clipboard",
+        "Paste Manually"
+      );
+      if (choice === "Import from Clipboard") await importSessionFromClipboard();
+      if (choice === "Paste Manually") await importSessionManually();
+    }
   }
 
   async function importSessionFromClipboard(): Promise<void> {
@@ -293,6 +362,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }
 
     await importAndConnect(input);
+  }
+
+  async function resetBrowserSignInProfile(): Promise<void> {
+    const confirmed = await vscode.window.showWarningMessage(
+      "Reset the dedicated LeetGPU sign-in browser profile? This removes its saved GitHub/Google sign-in state but does not disconnect the session stored in VS Code or affect your regular browser.",
+      { modal: true },
+      "Reset Profile"
+    );
+    if (confirmed !== "Reset Profile") return;
+    await browserAuth.resetProfile();
+    await vscode.window.showInformationMessage("LeetGPU's dedicated browser sign-in profile was reset.");
   }
 
   async function importSessionManually(): Promise<void> {
@@ -321,31 +401,38 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
 
   async function importAndConnect(input: string): Promise<void> {
-    await withProgress("Validating LeetGPU session…", async () => {
-      const user = await auth.importSession(input);
-      await refreshAuthenticatedState();
-      const clear = await vscode.window.showInformationMessage(
-        `Connected as ${user.displayName ?? user.email ?? "LeetGPU user"}.`,
-        "Clear Clipboard"
-      );
-      if (clear === "Clear Clipboard") {
-        const clipboard = await vscode.env.clipboard.readText();
-        if (clipboard === input) await vscode.env.clipboard.writeText("");
-      }
+    const user = await withProgress("Validating LeetGPU session…", () => auth.importSession(input));
+    refreshAuthenticatedStateInBackground();
+    const clear = await vscode.window.showInformationMessage(
+      `Connected as ${user.displayName ?? user.email ?? "LeetGPU user"}.`,
+      "Clear Clipboard"
+    );
+    if (clear === "Clear Clipboard") {
+      const clipboard = await vscode.env.clipboard.readText();
+      if (clipboard === input) await vscode.env.clipboard.writeText("");
+    }
+  }
+
+  function refreshAuthenticatedStateInBackground(): void {
+    tree.invalidate();
+    void refreshAuthenticatedState().catch((error) => {
+      tree.invalidate();
+      log.warn(`Could not refresh state after signing in: ${safeMessage(error)}`);
     });
   }
 
   async function refreshAuthenticatedState(): Promise<void> {
-    await tree.refresh().catch((error) => {
-      tree.invalidate();
-      log.warn(`Could not refresh account data after signing in: ${safeMessage(error)}`);
-    });
     const active = await workspace.getActiveSolution();
-    if (active) {
-      await compatibleAccelerator(active.language).catch((error) => {
-        log.warn(`Could not refresh accelerator access after signing in: ${safeMessage(error)}`);
-      });
-    }
+    const refreshes: Promise<unknown>[] = [
+      tree.refresh().catch((error) => {
+        tree.invalidate();
+        log.warn(`Could not refresh account data after signing in: ${safeMessage(error)}`);
+      })
+    ];
+    if (active) refreshes.push(compatibleAccelerator(active.language).catch((error) => {
+      log.warn(`Could not refresh accelerator access after signing in: ${safeMessage(error)}`);
+    }));
+    await Promise.all(refreshes);
   }
 
   async function ensureLanguageSupport(document: vscode.TextDocument): Promise<void> {
@@ -391,13 +478,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     );
     if (confirmed !== "Disconnect") return;
     await auth.disconnect();
+    tree.clearProgress();
     const active = await workspace.getActiveSolution();
     if (active) {
       await compatibleAccelerator(active.language).catch((error) => {
         log.warn(`Could not refresh accelerator access after disconnecting: ${safeMessage(error)}`);
       });
     }
-    tree.invalidate();
     vscode.window.showInformationMessage("LeetGPU session removed from VS Code.");
   }
 
@@ -445,7 +532,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     runFinished = false;
 
     transport.start(payload, action, accessToken, {
-      onEvent: (event) => handleSubmissionEvent(event, action),
+      onEvent: (event) => handleSubmissionEvent(event, action, active.challengeId),
       onError: (error) => {
         consoleView.write(`${error.message}\n`, "stderr");
         finishRun();
@@ -459,7 +546,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     });
   }
 
-  function handleSubmissionEvent(event: SubmissionEvent, action: "run" | "submit"): void {
+  function handleSubmissionEvent(
+    event: SubmissionEvent,
+    action: "run" | "submit",
+    challengeId: number
+  ): void {
     if (typeof event.output === "string") {
       consoleView.write(event.output, event.type === "stderr" ? "stderr" : "stdout");
     } else if (event.status) {
@@ -469,7 +560,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       finishRun(event.status);
       if (action === "submit") {
         problem.notifySubmissionComplete();
-        void tree.refresh().catch((error) => log.warn(safeMessage(error)));
+        tree.updateChallengeProgress(
+          challengeId,
+          event.status === "success" ? "completed" : "attempted"
+        );
       }
     }
   }
@@ -609,6 +703,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       currentChallenge = await api.getChallenge(active.challengeId);
       problem.show(currentChallenge, active.language, await compatibleAccelerator(active.language));
     }
+    await revealChallenge(active.challengeId);
     problem.showTab(tab);
   }
 
@@ -645,6 +740,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     document: vscode.TextDocument,
     active: { challengeId: number; language: string }
   ): Promise<void> {
+    ensureConnected(await auth.isConnected());
     if (active.language !== "cuda") {
       throw new Error("PTX and SASS are currently available only for CUDA solutions.");
     }

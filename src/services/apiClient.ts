@@ -100,11 +100,20 @@ export class LeetGpuClient {
     accelerator: string,
     signal?: AbortSignal
   ): Promise<AssemblyResponse> {
-    const response = await postJson("/api/v1/assembly", {
+    const body = {
       files,
       accelerator,
       language: "cuda"
-    }, signal);
+    };
+    let token = await this.auth.getAccessToken();
+    let response: unknown;
+    try {
+      response = await postJson("/api/v1/assembly", body, signal, token);
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 401) throw error;
+      token = await this.auth.getAccessToken(true);
+      response = await postJson("/api/v1/assembly", body, signal, token);
+    }
     return assemblyResponseSchema.parse(response);
   }
 
@@ -164,7 +173,12 @@ async function request(path: string, token?: string): Promise<Response> {
   throw new ApiError(lastError instanceof Error ? lastError.message : "LeetGPU request failed.");
 }
 
-async function postJson(path: string, body: unknown, externalSignal?: AbortSignal): Promise<unknown> {
+async function postJson(
+  path: string,
+  body: unknown,
+  externalSignal: AbortSignal | undefined,
+  token: string
+): Promise<unknown> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
   const abort = () => controller.abort();
@@ -172,7 +186,11 @@ async function postJson(path: string, body: unknown, externalSignal?: AbortSigna
   try {
     const response = await fetch(`${HTTP_API_URL}${path}`, {
       method: "POST",
-      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify(body),
       signal: controller.signal
     });

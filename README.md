@@ -16,9 +16,20 @@ Solve [LeetGPU](https://leetgpu.com/) challenges without leaving VS Code. The ex
 
 Browsing challenges does not require an account. Signing in is required for Run, Submit, Submissions, account progress, and other account-specific operations.
 
-> **Direct GitHub and Google browser callbacks are currently unavailable, so the extension does not show those sign-in paths.** The supported methods are importing the complete browser session JSON or manually pasting a refresh token/session JSON. Importing the complete JSON is recommended because you do not need to find `refresh_token` yourself.
+The recommended sign-in path opens an isolated, extension-owned Chrome, Edge, Brave, or Chromium profile for GitHub or Google authorization. After LeetGPU signs in, the extension transfers the LeetGPU session to VS Code and closes the browser. The dedicated profile retains the provider's sign-in state, so later sign-ins usually do not require entering GitHub or Google credentials again. No JSON or token copying is required.
 
-#### Method 1: Import the complete browser session JSON (recommended)
+#### Browser sign-in (recommended)
+
+1. Open the LeetGPU sidebar and click the signed-out account item, or run **LeetGPU: Sign In** from the command palette.
+2. Select **Continue with GitHub** or **Continue with Google**, using the same provider as your LeetGPU account.
+3. Complete authorization in the dedicated browser window. The first use has a separate profile, so GitHub or Google may ask you to sign in even if your regular browser is already signed in. Later uses reuse this dedicated profile.
+4. When `Connected as ...` appears, sign-in is complete.
+
+The dedicated browser exposes a debugging endpoint on `127.0.0.1` only. The extension reads and immediately removes only the `sb-…-auth-token` local-storage entry from `https://leetgpu.com`, then closes the process. GitHub/Google cookies and ordinary dedicated-profile data such as cache and history may remain for future authorization; LeetGPU's session is not retained there, and the extension does not inspect the other retained data. Canceling, timing out, failing, or starting a newer sign-in closes the window but preserves the profile. Existing browser profiles, cookies, history, and tabs are never opened or inspected. Run **LeetGPU: Reset Browser Sign-In Profile** to remove the dedicated profile and its saved provider sign-in state.
+
+#### Fallback: import a browser session
+
+Use this only if no supported Chromium browser is installed or automatic capture fails.
 
 1. Open a new **Incognito/InPrivate/Private** browser window, visit [leetgpu.com](https://leetgpu.com/), and sign in with your GitHub or Google account.
 2. Stay on the signed-in LeetGPU page and open Developer Tools:
@@ -28,17 +39,14 @@ Browsing challenges does not require an account. Signing in is required for Run,
 4. Find the entry whose name starts with `sb-` and ends with `-auth-token`, for example `sb-xxxxxxxx-auth-token`.
 5. Right-click its **Value** and choose **Copy value**. Copy the complete JSON value—not the key, a screenshot, or a manually extracted token.
 6. Close the private browser window directly. **Do not click Sign Out on LeetGPU.** Signing out can immediately invalidate the session you just copied.
-7. Return to VS Code and either:
-   - Open the LeetGPU sidebar and click the signed-out account item; or
-   - Press `Ctrl/Cmd+Shift+P` and run **LeetGPU: Sign In**.
-8. Select **Import copied browser session**. The extension reads the clipboard once at this point and extracts `refresh_token` from the complete JSON.
-9. When `Connected as ...` appears, sign-in is complete. Select **Clear Clipboard** to remove the copied JSON; the clipboard is cleared only if it still contains the exact imported value.
+7. In VS Code, run **LeetGPU: Sign In** and select **Import copied browser session**. The extension reads the clipboard once and extracts `refresh_token` from the complete JSON.
+8. When `Connected as ...` appears, select **Clear Clipboard** to remove the copied JSON; it is cleared only if the clipboard still contains the exact imported value.
 
 If VS Code reports that the clipboard does not contain a complete session JSON, verify that you copied the **Value** of the `sb-…-auth-token` entry rather than its name or a truncated Developer Tools preview. If authentication fails, create a fresh private window, sign in again, and copy the newest value. Do not reuse a session after clicking Sign Out.
 
-#### Method 2: Paste a token or session manually
+#### Advanced fallback: paste a token manually
 
-1. Follow steps 1–6 from Method 1 to obtain the LeetGPU browser session.
+1. Follow steps 1–6 from the browser-session fallback to obtain the LeetGPU session.
 2. Run **LeetGPU: Sign In** and select **Paste a refresh token manually**. You can also run **LeetGPU: Import Session Manually** directly.
 3. Paste either of the following into the password input:
    - The raw `refresh_token`; or
@@ -47,7 +55,7 @@ If VS Code reports that the clipboard does not contain a complete session JSON, 
 
 #### Session security and disconnecting
 
-The imported session is stored in VS Code's encrypted `SecretStorage`; it is not written to workspace files or extension logs. Clipboard contents are read only when you explicitly choose clipboard import, and the extension does not monitor clipboard changes.
+The resulting session is stored in VS Code's encrypted `SecretStorage`; it is not written to workspace files or extension logs. Automatic sign-in reads only LeetGPU local storage in the extension-owned dedicated profile, never an existing browser profile. The dedicated profile persists separately in VS Code's extension global-storage area and may contain provider cookies protected by the browser and operating system. Clipboard contents are read only when you explicitly choose clipboard import, and the extension does not monitor clipboard changes.
 
 Never paste a session JSON or token into source files, settings, chat messages, public issues, screenshots, or online JSON tools. **LeetGPU: Disconnect** deletes only the session stored by this VS Code extension; it does not sign other browsers out or revoke the server-side session.
 
@@ -137,9 +145,20 @@ Read [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md) before using or pub
 
 浏览题目不需要帐号。Run、Submit、Submissions、帐号进度以及其他帐号相关操作需要登录。
 
-> **GitHub 和 Google 的直接浏览器回调目前不可用，因此插件不会显示这些登录路径。** 当前支持导入完整浏览器会话 JSON，或者手动粘贴 refresh token/会话 JSON。推荐导入完整 JSON，因为不需要自己查找 `refresh_token`。
+推荐使用扩展启动的隔离、专属 Chrome、Edge、Brave 或 Chromium profile 完成 GitHub/Google 授权。LeetGPU 登录成功后，扩展会把 LeetGPU 会话转移到 VS Code 并关闭窗口。专属 profile 会保留登录提供商的状态，所以下次通常无需再次输入 GitHub 或 Google 凭据；全程无需复制 JSON 或 token。
 
-#### 方式一：导入完整浏览器会话 JSON（推荐）
+#### 浏览器登录（推荐）
+
+1. 打开 LeetGPU 侧边栏并点击未登录的帐号项，或从命令面板运行 **LeetGPU: Sign In**。
+2. 选择 **Continue with GitHub** 或 **Continue with Google**，使用与 LeetGPU 帐号相同的登录提供商。
+3. 在专属浏览器窗口中完成授权。首次使用的是独立 profile，因此即使普通浏览器已经登录 GitHub/Google，这里仍可能要求登录；后续会复用该专属 profile。
+4. 出现 `Connected as ...` 后即登录成功。
+
+专属浏览器只在 `127.0.0.1` 暴露调试端点。扩展只读取并立即删除 `https://leetgpu.com` 下的 `sb-…-auth-token` 本地存储项，随后关闭进程；GitHub/Google Cookie 以及缓存、历史记录等普通专属 profile 数据可能会保留以便后续授权，LeetGPU 会话不会留在其中，扩展也不会检查其他保留数据。取消、超时、失败或开始新的登录会关闭窗口但保留 profile。已有浏览器的 profile、Cookie、历史记录和标签页不会被打开或检查。运行 **LeetGPU: Reset Browser Sign-In Profile** 可删除专属 profile 及其中保存的提供商登录状态。
+
+#### 兜底：导入浏览器会话
+
+只有在没有安装受支持的 Chromium 浏览器或自动读取失败时才需要使用此方式。
 
 1. 新建一个浏览器的**无痕/InPrivate/隐私**窗口，打开 [leetgpu.com](https://leetgpu.com/)，并使用自己的 GitHub 或 Google 帐号登录。
 2. 登录成功后停留在 LeetGPU 页面，然后打开开发者工具：
@@ -149,17 +168,14 @@ Read [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md) before using or pub
 4. 找到名称以 `sb-` 开头、以 `-auth-token` 结尾的条目，例如 `sb-xxxxxxxx-auth-token`。
 5. 右键该条目的 **Value（值）**，选择 **Copy value（复制值）**。复制完整 JSON 值，不要复制 key、截图或手动截取出来的 token。
 6. 直接关闭隐私浏览器窗口。**不要点击 LeetGPU 的 Sign Out。** 退出登录可能立即使刚复制的会话失效。
-7. 回到 VS Code，执行以下任一操作：
-   - 打开 LeetGPU 侧边栏，点击未登录的帐号项；或
-   - 按 `Ctrl/Cmd+Shift+P`，运行 **LeetGPU: Sign In**。
-8. 选择 **Import copied browser session**。插件只会在此时读取一次剪贴板，并从完整 JSON 中提取 `refresh_token`。
-9. 出现 `Connected as ...` 后即登录成功。选择 **Clear Clipboard** 可以删除复制的 JSON；只有当剪贴板仍然包含刚导入的完整值时，插件才会将其清空。
+7. 在 VS Code 中运行 **LeetGPU: Sign In**，选择 **Import copied browser session**。插件只会读取一次剪贴板，并从完整 JSON 中提取 `refresh_token`。
+8. 出现 `Connected as ...` 后选择 **Clear Clipboard**；只有当剪贴板仍包含刚导入的完整值时才会清空。
 
 如果 VS Code 提示剪贴板中没有完整会话 JSON，请确认复制的是 `sb-…-auth-token` 条目的 **Value（值）**，而不是条目名称或开发者工具中被截断的预览。如果认证失败，请重新创建隐私窗口、再次登录并复制最新值。不要复用已经点击过 Sign Out 的会话。
 
-#### 方式二：手动粘贴 token 或会话
+#### 高级兜底：手动粘贴 token
 
-1. 按照方式一的第 1–6 步取得 LeetGPU 浏览器会话。
+1. 按照浏览器会话兜底方式的第 1–6 步取得 LeetGPU 会话。
 2. 运行 **LeetGPU: Sign In**，选择 **Paste a refresh token manually**；也可以直接运行 **LeetGPU: Import Session Manually**。
 3. 在密码输入框中粘贴以下任一种内容：
    - 原始 `refresh_token`；或
@@ -168,7 +184,7 @@ Read [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md) before using or pub
 
 #### 会话安全与断开连接
 
-导入的会话保存在 VS Code 加密的 `SecretStorage` 中，不会写入工作区文件或扩展日志。只有当你明确选择从剪贴板导入时，插件才会读取剪贴板；插件不会监控剪贴板变化。
+最终会话保存在 VS Code 加密的 `SecretStorage` 中，不会写入工作区文件或扩展日志。自动登录只读取扩展专属 profile 中的 LeetGPU 本地存储，不会读取已有浏览器 profile。专属 profile 单独保存在 VS Code 的扩展全局存储区，可能包含由浏览器和操作系统保护的登录提供商 Cookie。只有当你明确选择从剪贴板导入时，插件才会读取剪贴板；插件不会监控剪贴板变化。
 
 不要把会话 JSON 或 token 粘贴到源文件、设置、聊天消息、公开 Issue、截图或在线 JSON 工具中。**LeetGPU: Disconnect** 只会删除此 VS Code 插件保存的会话，不会让其他浏览器退出登录，也不会撤销服务端会话。
 

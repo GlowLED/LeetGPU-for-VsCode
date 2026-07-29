@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.11
+
+- Add automatic GitHub and Google sign-in through a persistent, extension-owned Chrome, Edge, Brave, or Chromium profile, avoiding LeetGPU's unavailable VS Code callback while retaining the provider sign-in state for later authorization.
+- Read and immediately remove only the LeetGPU session from the dedicated profile over a loopback-only debugging connection, then close the browser after success, failure, cancellation, timeout, or replacement.
+- Add **LeetGPU: Reset Browser Sign-In Profile** to delete the dedicated profile and its saved GitHub/Google sign-in state.
+- Close the sign-in progress notification as soon as the session is saved; account, challenge, and accelerator refreshes now continue in the background without leaving a completed login stuck on “waiting”.
+- Keep clipboard and manual session import as explicit fallbacks without reading any existing browser profile, cookies, history, tabs, or local storage.
+
 ## 0.4.10
 
 - Complete the CUDA offline analysis model with the stable single-precision device intrinsics, including `__expf`, and add common streams, events, block/warp synchronization, vote, shuffle, and atomic APIs with completion, hover, and signature help.

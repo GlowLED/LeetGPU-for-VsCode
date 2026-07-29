@@ -1,4 +1,4 @@
-import * as vscode from "vscode";
+import type * as vscode from "vscode";
 import { AUTH_SECRET_KEY, SUPABASE_ANON_KEY, SUPABASE_URL } from "../constants";
 import type { AuthUser, StoredSession } from "../models";
 import { extractRefreshToken } from "../utils/authInput";

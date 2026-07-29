@@ -10,15 +10,18 @@ interface ActionNode { kind: "action"; label: string; command: string; icon: str
 interface StatusNode { kind: "status"; label: string; description?: string; tooltip?: string; icon: string }
 interface DifficultyNode { kind: "difficulty"; difficulty: string; challenges: ChallengeSummary[] }
 interface ChallengeNode { kind: "challenge"; challenge: ChallengeSummary; progress?: string }
+type ChallengeProgress = "attempted" | "completed";
 
 export class ChallengeTreeProvider implements vscode.TreeDataProvider<TreeNode> {
   private readonly changed = new vscode.EventEmitter<TreeNode | undefined>();
   private challenges: ChallengeSummary[] = [];
+  private readonly challengeNodes = new Map<number, ChallengeNode>();
   private progress: Record<string, string> = {};
   private loaded = false;
   private loading = false;
   private loadError: string | undefined;
   private refreshPromise: Promise<void> | undefined;
+  private progressEpoch = 0;
   public readonly onDidChangeTreeData = this.changed.event;
 
   public constructor(private readonly api: LeetGpuClient, private readonly auth: AuthService) {}
@@ -46,17 +49,27 @@ export class ChallengeTreeProvider implements vscode.TreeDataProvider<TreeNode> 
   }
 
   private async load(): Promise<void> {
+    const progressEpoch = this.progressEpoch;
     const [challenges, connected] = await Promise.all([
       this.api.getChallenges(),
       this.auth.isConnected()
     ]);
     this.challenges = challenges;
-    this.progress = {};
+    let progress: Record<string, string> = {};
     if (connected) {
       try {
-        this.progress = await this.api.getProgress();
+        const loadedProgress = await this.api.getProgress();
+        if (progressEpoch === this.progressEpoch && await this.auth.isConnected()) {
+          progress = loadedProgress;
+        }
       } catch {
         // Challenge browsing remains available when authenticated progress fails.
+      }
+    }
+    if (progressEpoch === this.progressEpoch) {
+      this.progress = progress;
+      for (const node of this.challengeNodes.values()) {
+        node.progress = this.progress[String(node.challenge.id)];
       }
     }
     this.loaded = true;
@@ -64,6 +77,33 @@ export class ChallengeTreeProvider implements vscode.TreeDataProvider<TreeNode> 
 
   public invalidate(): void {
     this.changed.fire(undefined);
+  }
+
+  public clearProgress(): void {
+    this.progressEpoch += 1;
+    this.progress = {};
+    for (const node of this.challengeNodes.values()) node.progress = undefined;
+    this.changed.fire(undefined);
+  }
+
+  public updateChallengeProgress(challengeId: number, progress: ChallengeProgress): void {
+    const key = String(challengeId);
+    const previous = this.progress[key];
+    if (previous === progress || previous === "completed" && progress === "attempted") return;
+    this.progressEpoch += 1;
+    this.progress[key] = progress;
+    const node = this.getChallengeNode(challengeId);
+    this.changed.fire(node);
+  }
+
+  public getChallengeNode(challengeId: number): ChallengeNode | undefined {
+    const challenge = this.challenges.find((candidate) => candidate.id === challengeId);
+    return challenge ? this.challengeNode(challenge) : undefined;
+  }
+
+  public getParent(element: TreeNode): TreeNode | undefined {
+    if (element.kind !== "challenge") return undefined;
+    return this.difficultyNode(element.challenge.difficultyLevel.toLowerCase());
   }
 
   public async getChildren(element?: TreeNode): Promise<TreeNode[]> {
@@ -99,26 +139,47 @@ export class ChallengeTreeProvider implements vscode.TreeDataProvider<TreeNode> 
         { kind: "action", label: "Global Leaderboard", command: "leetgpu.showGlobalLeaderboard", icon: "trophy" }
       ];
       for (const difficulty of ["easy", "medium", "hard", "unknown"]) {
-        const challenges = this.challenges.filter(
-          (challenge) => challenge.difficultyLevel.toLowerCase() === difficulty
-        );
-        if (challenges.length) roots.push({ kind: "difficulty", difficulty, challenges });
+        const node = this.difficultyNode(difficulty);
+        if (node.challenges.length) roots.push(node);
       }
       return roots;
     }
     if (element.kind === "difficulty") {
-      return element.challenges.map((challenge) => ({
-        kind: "challenge",
-        challenge,
-        progress: this.progress[String(challenge.id)]
-      }));
+      return element.challenges.map((challenge) => this.challengeNode(challenge));
     }
     return [];
+  }
+
+  private difficultyNode(difficulty: string): DifficultyNode {
+    return {
+      kind: "difficulty",
+      difficulty,
+      challenges: this.challenges.filter(
+        (challenge) => challenge.difficultyLevel.toLowerCase() === difficulty
+      )
+    };
+  }
+
+  private challengeNode(challenge: ChallengeSummary): ChallengeNode {
+    const existing = this.challengeNodes.get(challenge.id);
+    if (existing) {
+      existing.challenge = challenge;
+      existing.progress = this.progress[String(challenge.id)];
+      return existing;
+    }
+    const node: ChallengeNode = {
+      kind: "challenge",
+      challenge,
+      progress: this.progress[String(challenge.id)]
+    };
+    this.challengeNodes.set(challenge.id, node);
+    return node;
   }
 
   public getTreeItem(element: TreeNode): vscode.TreeItem {
     if (element.kind === "account") {
       const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.None);
+      item.id = "account";
       item.iconPath = new vscode.ThemeIcon(element.connected ? "account" : "sign-in");
       item.description = element.connected ? "Connected" : "Run, Submit & history";
       item.tooltip = element.connected
@@ -132,6 +193,7 @@ export class ChallengeTreeProvider implements vscode.TreeDataProvider<TreeNode> 
     }
     if (element.kind === "status") {
       const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.None);
+      item.id = `status:${element.label}`;
       item.description = element.description;
       item.tooltip = element.tooltip ?? element.label;
       item.iconPath = new vscode.ThemeIcon(element.icon);
@@ -139,6 +201,7 @@ export class ChallengeTreeProvider implements vscode.TreeDataProvider<TreeNode> 
     }
     if (element.kind === "action") {
       const item = new vscode.TreeItem(element.label, vscode.TreeItemCollapsibleState.None);
+      item.id = `action:${element.command}`;
       item.iconPath = new vscode.ThemeIcon(element.icon);
       item.command = { command: element.command, title: element.label };
       return item;
@@ -148,6 +211,7 @@ export class ChallengeTreeProvider implements vscode.TreeDataProvider<TreeNode> 
         `${capitalize(element.difficulty)} (${element.challenges.length})`,
         vscode.TreeItemCollapsibleState.Expanded
       );
+      item.id = `difficulty:${element.difficulty}`;
       item.iconPath = difficultyIcon(element.difficulty);
       item.tooltip = `${capitalize(element.difficulty)} difficulty · ${element.challenges.length} challenge${element.challenges.length === 1 ? "" : "s"}`;
       return item;
@@ -156,11 +220,10 @@ export class ChallengeTreeProvider implements vscode.TreeDataProvider<TreeNode> 
       `${element.challenge.id}. ${element.challenge.title}`,
       vscode.TreeItemCollapsibleState.None
     );
+    item.id = `challenge:${element.challenge.id}`;
     item.description = element.progress;
     item.tooltip = `${capitalize(element.challenge.difficultyLevel)} · ${element.challenge.accessTier}`;
-    item.iconPath = new vscode.ThemeIcon(
-      element.progress === "completed" ? "pass-filled" : element.progress === "attempted" ? "history" : "circle-outline"
-    );
+    item.iconPath = challengeProgressIcon(element.progress);
     item.contextValue = "leetgpuChallenge";
     item.command = {
       command: "leetgpu.openChallenge",
@@ -190,6 +253,16 @@ function difficultyIcon(difficulty: string): vscode.ThemeIcon {
   if (difficulty === "medium") return new vscode.ThemeIcon("zap", new vscode.ThemeColor("charts.yellow"));
   if (difficulty === "hard") return new vscode.ThemeIcon("flame", new vscode.ThemeColor("charts.red"));
   return new vscode.ThemeIcon("question");
+}
+
+function challengeProgressIcon(progress?: string): vscode.ThemeIcon {
+  if (progress === "completed") {
+    return new vscode.ThemeIcon("pass-filled", new vscode.ThemeColor("charts.green"));
+  }
+  if (progress === "attempted") {
+    return new vscode.ThemeIcon("history", new vscode.ThemeColor("charts.yellow"));
+  }
+  return new vscode.ThemeIcon("circle-outline", new vscode.ThemeColor("disabledForeground"));
 }
 
 function capitalize(value: string): string {
