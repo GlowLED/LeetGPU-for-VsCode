@@ -2,6 +2,8 @@
 
 ## 0.4.11
 
+- Resolve Run and Submit from the current challenge and selected language instead of requiring its solution to be the active editor, while preserving unsaved solution-buffer changes.
+- Add challenge and language identity comments to generated solution files so multiple open solutions remain easy to distinguish, including a code-preserving migration for existing solutions.
 - Add automatic GitHub and Google sign-in through a persistent, extension-owned Chrome, Edge, Brave, or Chromium profile, avoiding LeetGPU's unavailable VS Code callback while retaining the provider sign-in state for later authorization.
 - Read and immediately remove only the LeetGPU session from the dedicated profile over a loopback-only debugging connection, then close the browser after success, failure, cancellation, timeout, or replacement.
 - Add **LeetGPU: Reset Browser Sign-In Profile** to delete the dedicated profile and its saved GitHub/Google sign-in state.

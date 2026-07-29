@@ -7,6 +7,7 @@ import type {
   StarterCode
 } from "../models";
 import { slugify, solutionFileName, starterHash } from "../utils/slug";
+import { withSolutionIdentity } from "../utils/solutionIdentity";
 
 const WORKSPACE_SELECTION_KEY = "leetgpu.selectedWorkspaceFolder";
 
@@ -47,8 +48,13 @@ export class WorkspaceManager {
     const solutionUri = vscode.Uri.joinPath(languageDir, fileName);
 
     await vscode.workspace.fs.createDirectory(languageDir);
-    if (!(await exists(solutionUri))) {
-      await vscode.workspace.fs.writeFile(solutionUri, Buffer.from(starter.fileContent, "utf8"));
+    if (await exists(solutionUri)) {
+      await this.ensureSolutionIdentity(solutionUri, challenge, language);
+    } else {
+      await vscode.workspace.fs.writeFile(
+        solutionUri,
+        Buffer.from(withSolutionIdentity(starter.fileContent, challenge, language), "utf8")
+      );
     }
 
     manifest.title = challenge.title;
@@ -66,18 +72,55 @@ export class WorkspaceManager {
     );
     if (!starter) throw new Error(`No ${language} starter template is available.`);
     const opened = await this.openChallenge(challenge, language);
+    const content = withSolutionIdentity(starter.fileContent, challenge, opened.language);
     const document = vscode.workspace.textDocuments.find((candidate) => candidate.uri.toString() === opened.uri.toString());
     if (document) {
       const edit = new vscode.WorkspaceEdit();
       const lastLine = Math.max(0, document.lineCount - 1);
       const end = document.lineAt(lastLine).range.end;
-      edit.replace(document.uri, new vscode.Range(0, 0, end.line, end.character), starter.fileContent);
+      edit.replace(document.uri, new vscode.Range(0, 0, end.line, end.character), content);
       await vscode.workspace.applyEdit(edit);
       await document.save();
     } else {
-      await vscode.workspace.fs.writeFile(opened.uri, Buffer.from(starter.fileContent, "utf8"));
+      await vscode.workspace.fs.writeFile(opened.uri, Buffer.from(content, "utf8"));
     }
     return opened.uri;
+  }
+
+  public async findSolution(challengeId: number, language: string): Promise<ActiveSolution | undefined> {
+    const normalizedLanguage = language.toLowerCase();
+    for (const folder of this.workspaceFoldersInPriorityOrder()) {
+      const rootName = vscode.workspace.getConfiguration("leetgpu", folder.uri).get<string>(
+        "solutionDirectory",
+        "leetgpu"
+      );
+      validateRelativeDirectory(rootName);
+      const rootUri = vscode.Uri.joinPath(folder.uri, ...rootName.split(/[\\/]+/));
+      const challengeDir = await findChallengeDirectory(rootUri, challengeId);
+      if (!challengeDir) continue;
+
+      const manifestUri = vscode.Uri.joinPath(challengeDir, MANIFEST_FILE);
+      const manifest = await this.readManifest(manifestUri);
+      const entry = manifest?.solutions[normalizedLanguage];
+      if (
+        !manifest
+        || manifest.challengeId !== challengeId
+        || !entry
+        || typeof entry.path !== "string"
+        || !isSafeRelativePath(entry.path)
+      ) continue;
+
+      const uri = vscode.Uri.joinPath(challengeDir, ...entry.path.split(/[\\/]+/));
+      if (!(await isFile(uri))) continue;
+      return {
+        challengeId: manifest.challengeId,
+        title: manifest.title,
+        language: normalizedLanguage,
+        uri,
+        manifestUri
+      };
+    }
+    return undefined;
   }
 
   public async getActiveSolution(document = vscode.window.activeTextEditor?.document): Promise<ActiveSolution | undefined> {
@@ -120,6 +163,41 @@ export class WorkspaceManager {
     return selected.folder;
   }
 
+  private workspaceFoldersInPriorityOrder(): vscode.WorkspaceFolder[] {
+    const folders = [...(vscode.workspace.workspaceFolders ?? [])];
+    const selectedUri = this.context.workspaceState.get<string>(WORKSPACE_SELECTION_KEY);
+    return folders.sort((left, right) =>
+      Number(right.uri.toString() === selectedUri) - Number(left.uri.toString() === selectedUri)
+    );
+  }
+
+  private async ensureSolutionIdentity(
+    uri: vscode.Uri,
+    challenge: ChallengeDetail,
+    language: string
+  ): Promise<void> {
+    const document = vscode.workspace.textDocuments.find((candidate) => candidate.uri.toString() === uri.toString());
+    if (document) {
+      const original = document.getText();
+      const updated = withSolutionIdentity(original, challenge, language);
+      if (updated === original) return;
+      const wasDirty = document.isDirty;
+      const edit = new vscode.WorkspaceEdit();
+      edit.replace(uri, new vscode.Range(new vscode.Position(0, 0), document.positionAt(original.length)), updated);
+      if (!(await vscode.workspace.applyEdit(edit))) {
+        throw new Error("Could not add identifying metadata to the LeetGPU solution.");
+      }
+      if (!wasDirty) await document.save();
+      return;
+    }
+
+    const original = Buffer.from(await vscode.workspace.fs.readFile(uri)).toString("utf8");
+    const updated = withSolutionIdentity(original, challenge, language);
+    if (updated !== original) {
+      await vscode.workspace.fs.writeFile(uri, Buffer.from(updated, "utf8"));
+    }
+  }
+
   private async readManifest(uri: vscode.Uri): Promise<ChallengeManifest | undefined> {
     try {
       const raw = await vscode.workspace.fs.readFile(uri);
@@ -158,6 +236,14 @@ async function exists(uri: vscode.Uri): Promise<boolean> {
   }
 }
 
+async function isFile(uri: vscode.Uri): Promise<boolean> {
+  try {
+    return Boolean((await vscode.workspace.fs.stat(uri)).type & vscode.FileType.File);
+  } catch {
+    return false;
+  }
+}
+
 async function findChallengeDirectory(root: vscode.Uri, challengeId: number): Promise<vscode.Uri | undefined> {
   try {
     const entries = await vscode.workspace.fs.readDirectory(root);
@@ -172,7 +258,14 @@ async function findChallengeDirectory(root: vscode.Uri, challengeId: number): Pr
 }
 
 function validateRelativeDirectory(value: string): void {
-  if (!value || value.startsWith("/") || value.startsWith("\\") || value.split(/[\\/]/).includes("..")) {
+  if (!isSafeRelativePath(value)) {
     throw new Error("leetgpu.solutionDirectory must be a safe workspace-relative directory.");
   }
+}
+
+function isSafeRelativePath(value: string): boolean {
+  return Boolean(value)
+    && !value.startsWith("/")
+    && !value.startsWith("\\")
+    && !value.split(/[\\/]/).includes("..");
 }

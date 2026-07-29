@@ -6,7 +6,7 @@ export interface ProblemPanelHandlers {
   openLanguage(language: string): Promise<void>;
   selectAccelerator(language: string): Promise<void>;
   showAssembly(language: string): Promise<void>;
-  run(action: "run" | "submit"): Promise<void>;
+  run(action: "run" | "submit", language: string): Promise<void>;
   loadSubmissions(language: string): Promise<unknown>;
   loadSolutions(language: string, page: number): Promise<unknown>;
   loadLeaderboard(language: string): Promise<unknown>;
@@ -80,7 +80,7 @@ export class ProblemPanel implements vscode.Disposable {
       } else if (message.command === "showAssembly") {
         await this.handlers.showAssembly(this.language);
       } else if (message.command === "action" && (message.action === "run" || message.action === "submit")) {
-        await this.handlers.run(message.action);
+        await this.handlers.run(message.action, this.language);
       } else if (message.command === "loadTab" && message.tab && message.language) {
         const page = Number.isInteger(message.page) && message.page! > 0 ? message.page! : 1;
         const data = message.tab === "submissions"

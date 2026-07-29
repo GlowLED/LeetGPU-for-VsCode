@@ -80,7 +80,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         language: opened.language
       });
     },
-    run: async (action) => runOrSubmit(action),
+    run: async (action, language) => {
+      if (!currentChallenge) throw new Error("No LeetGPU challenge is open.");
+      await runOrSubmit(action, { challengeId: currentChallenge.id, language });
+    },
     loadSubmissions: async (language) => withProgress(
       `Loading ${languageLabel(language)} submissions…`,
       async () => {
@@ -488,16 +491,33 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.window.showInformationMessage("LeetGPU session removed from VS Code.");
   }
 
-  async function runOrSubmit(action: "run" | "submit"): Promise<void> {
+  async function runOrSubmit(
+    action: "run" | "submit",
+    target?: { challengeId: number; language: string }
+  ): Promise<void> {
     if (transport.active) {
       vscode.window.showWarningMessage("A LeetGPU run is already active.");
       return;
     }
-    const document = vscode.window.activeTextEditor?.document;
-    const active = await workspace.getActiveSolution(document);
-    if (!active || !document) {
-      throw new Error("Open a LeetGPU solution file before running or submitting.");
+    let active = target
+      ? await workspace.findSolution(target.challengeId, target.language)
+      : await workspace.getActiveSolution();
+    if (!active && !target && currentChallenge) {
+      const selectedLanguage = context.workspaceState.get<string>(SELECTED_LANGUAGE_KEY);
+      if (selectedLanguage) {
+        active = await workspace.findSolution(currentChallenge.id, selectedLanguage);
+      }
     }
+    if (!active) {
+      if (target) {
+        throw new Error(
+          `Could not find the ${languageLabel(target.language)} solution for challenge #${target.challengeId}. `
+          + "Open that language from the problem panel to recreate the missing file."
+        );
+      }
+      throw new Error("Open a LeetGPU challenge or solution before running or submitting.");
+    }
+    const document = await vscode.workspace.openTextDocument(active.uri);
     if (!(await auth.isConnected())) {
       await vscode.commands.executeCommand("leetgpu.signIn");
       if (!(await auth.isConnected())) return;

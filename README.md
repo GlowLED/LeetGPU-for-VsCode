@@ -64,6 +64,7 @@ Never paste a session JSON or token into source files, settings, chat messages, 
 - Browse, search, and filter the live LeetGPU challenge list without signing in.
 - Read sanitized, math-rendered problem statements and inline diagrams beside a native VS Code editor.
 - Create separate solution files for CUDA, Triton, PyTorch, JAX, CuTe DSL, and Mojo.
+- Identify every generated solution with a comment header containing its challenge number, title, and language.
 - Edit without installing CUDA, Torch, Triton, JAX, CuTe, or Mojo: generated analysis models suppress missing-dependency diagnostics and provide common completion, hover, and signature help.
 - Select accelerators from the problem panel, solution CodeLens, status bar, or command palette while keeping unavailable GPUs and TPUs visible.
 - Stream Run/Submit output into the LeetGPU Console with ANSI colors and cancellation support.
@@ -77,7 +78,9 @@ Solutions are created under:
 leetgpu/<challenge-id>-<slug>/<language>/solution.*
 ```
 
-Existing solution files are never overwritten unless you explicitly run **LeetGPU: Reset Solution to Latest Starter** and confirm the warning.
+Existing solution code is never overwritten unless you explicitly run **LeetGPU: Reset Solution to Latest Starter** and confirm the warning. Solutions created by an older extension version receive only the identifying comment header the next time they are opened.
+
+Run and Submit resolve the solution from the open challenge and selected language. The problem panel therefore remains independent from editor focus: other files can stay open or active, and unsaved changes in the matching solution buffer are still used.
 
 ### Usage
 
@@ -193,6 +196,7 @@ Read [PRIVACY.md](PRIVACY.md) and [SECURITY.md](SECURITY.md) before using or pub
 - 无需登录即可浏览、搜索和筛选实时 LeetGPU 题目列表。
 - 在原生 VS Code 编辑器旁阅读经过安全清理、支持数学公式和内嵌图形的题目描述。
 - 为 CUDA、Triton、PyTorch、JAX、CuTe DSL 和 Mojo 分别创建 solution 文件。
+- 在每个生成的 solution 文件头部用注释标明题号、题目名称和语言，便于同时编辑多个文件时辨认。
 - 无需安装 CUDA、Torch、Triton、JAX、CuTe 或 Mojo 即可编辑：生成的分析模型会抑制缺少依赖的诊断，并提供常用补全、悬停和签名帮助。
 - 可以从题目面板、solution CodeLens、状态栏或命令面板选择加速器，同时保留不可用 GPU 和 TPU 的可见状态。
 - 将 Run/Submit 输出流式显示在 LeetGPU Console 中，并支持 ANSI 彩色文本和取消操作。
@@ -206,7 +210,9 @@ Solution 会创建在：
 leetgpu/<challenge-id>-<slug>/<language>/solution.*
 ```
 
-除非你明确运行 **LeetGPU: Reset Solution to Latest Starter** 并确认警告，否则插件不会覆盖现有 solution 文件。
+除非你明确运行 **LeetGPU: Reset Solution to Latest Starter** 并确认警告，否则插件不会覆盖已有 solution 代码。旧版插件创建的 solution 在下次打开时只会补充识别用的注释头。
+
+Run 和 Submit 会根据当前题目与所选语言解析对应的 solution。题目面板不再依赖右侧编辑器焦点：即使其他文件处于活动状态，也会使用匹配 solution 缓冲区中的最新内容（包括尚未保存的修改）。
 
 ### 使用方法
 
