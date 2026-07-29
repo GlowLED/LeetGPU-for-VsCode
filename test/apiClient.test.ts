@@ -44,3 +44,27 @@ describe("LeetGpuClient assembly authentication", () => {
     expect(init.headers).toMatchObject({ Authorization: "Bearer access-token" });
   });
 });
+
+describe("LeetGpuClient request cancellation", () => {
+  it("aborts a superseded challenge request without retrying it", async () => {
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      const signal = init?.signal;
+      if (!signal) return;
+      const abort = () => reject(signal.reason);
+      if (signal.aborted) abort();
+      else signal.addEventListener("abort", abort, { once: true });
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const auth = {} as AuthService;
+    const controller = new AbortController();
+    const reason = new Error("A newer challenge was selected.");
+    const request = new LeetGpuClient(auth).getChallenge(1, controller.signal);
+    const rejection = expect(request).rejects.toBe(reason);
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+
+    controller.abort(reason);
+
+    await rejection;
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+});

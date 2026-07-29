@@ -37,6 +37,17 @@ interface SignInQuickPickItem extends vscode.QuickPickItem {
   action: BrowserAuthProvider | "clipboard" | "manual";
 }
 
+interface ActiveChallengeOpen {
+  id: number;
+  sequence: number;
+  controller: AbortController;
+}
+
+interface CompatibleAcceleratorOptions {
+  signal?: AbortSignal;
+  apply?: boolean;
+}
+
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const log = vscode.window.createOutputChannel("LeetGPU Log", { log: true });
   const auth = new AuthService(context.secrets);
@@ -60,7 +71,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const readOnlyCode = new ReadOnlyCodeProvider();
   const preparingDocuments = new Map<string, Promise<vscode.TextDocument>>();
   let currentChallenge: ChallengeDetail | undefined;
-  let openingChallengeId: number | undefined;
+  let challengeOpenSequence = 0;
+  let activeChallengeOpen: ActiveChallengeOpen | undefined;
   let runFinished = true;
 
   const problem = new ProblemPanel(context.extensionUri, {
@@ -142,6 +154,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     browserAuth,
     languageSupport,
     { dispose: () => transport.dispose() },
+    { dispose: () => activeChallengeOpen?.controller.abort(new vscode.CancellationError()) },
     problem,
     solutionCodeLens,
     readOnlyCode,
@@ -228,33 +241,72 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     .catch((error) => log.warn(safeMessage(error)));
 
   async function openChallenge(summary: ChallengeSummary): Promise<void> {
-    if (currentChallenge?.id === summary.id || openingChallengeId === summary.id) {
+    if (activeChallengeOpen?.id === summary.id) {
       await revealChallenge(summary.id);
       return;
     }
-    openingChallengeId = summary.id;
+    if (currentChallenge?.id === summary.id) {
+      challengeOpenSequence += 1;
+      const previous = activeChallengeOpen;
+      activeChallengeOpen = undefined;
+      previous?.controller.abort(new vscode.CancellationError());
+      await revealChallenge(summary.id);
+      return;
+    }
+
+    const sequence = ++challengeOpenSequence;
+    const controller = new AbortController();
+    const previous = activeChallengeOpen;
+    const operation: ActiveChallengeOpen = { id: summary.id, sequence, controller };
+    activeChallengeOpen = operation;
+    previous?.controller.abort(new vscode.CancellationError());
+    const ensureCurrent = () => {
+      if (
+        controller.signal.aborted
+        || activeChallengeOpen !== operation
+        || challengeOpenSequence !== sequence
+      ) throw new vscode.CancellationError();
+    };
+
     try {
       await withProgress(`Opening ${summary.title}…`, async () => {
-        const detail = await api.getChallenge(summary.id);
+        const detail = await api.getChallenge(summary.id, controller.signal);
+        ensureCurrent();
         const preferred = context.workspaceState.get<string>(SELECTED_LANGUAGE_KEY);
         const opened = await workspace.openChallenge(detail, preferred);
+        ensureCurrent();
         const document = await prepareSolutionDocument(
           await vscode.workspace.openTextDocument(opened.uri),
           opened.language
         );
+        ensureCurrent();
+        const accelerator = await compatibleAccelerator(opened.language, {
+          signal: controller.signal,
+          apply: false
+        });
+        ensureCurrent();
         await context.workspaceState.update(SELECTED_LANGUAGE_KEY, opened.language);
-        const accelerator = await compatibleAccelerator(opened.language);
+        ensureCurrent();
+        if (accelerator !== selectedAccelerator()) {
+          await context.globalState.update(SELECTED_ACCELERATOR_KEY, accelerator);
+          ensureCurrent();
+        }
         currentChallenge = detail;
         problem.show(detail, opened.language, accelerator);
+        solutionCodeLens.refresh();
         await vscode.window.showTextDocument(document, {
           viewColumn: vscode.ViewColumn.Two,
           preserveFocus: false,
           preview: false
         });
+        ensureCurrent();
         await revealChallenge(summary.id);
       });
+    } catch (error) {
+      if (controller.signal.aborted || activeChallengeOpen !== operation) return;
+      throw error;
     } finally {
-      if (openingChallengeId === summary.id) openingChallengeId = undefined;
+      if (activeChallengeOpen === operation) activeChallengeOpen = undefined;
     }
   }
 
@@ -639,11 +691,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     await updateEditorContext();
   }
 
-  async function compatibleAccelerator(language: string): Promise<string> {
+  async function compatibleAccelerator(
+    language: string,
+    options: CompatibleAcceleratorOptions = {}
+  ): Promise<string> {
     const [response, hasPaidAccess] = await Promise.all([
-      api.getAccelerators(),
-      hasPaidAcceleratorAccess()
+      api.getAccelerators("accelerated", options.signal),
+      hasPaidAcceleratorAccess(options.signal)
     ]);
+    throwIfOperationCanceled(options.signal);
     const compatible = compatibleGpus(
       response.accelerators,
       response.supportedLanguages,
@@ -653,7 +709,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     if (!compatible.length) throw new Error(`No LeetGPU accelerator supports ${language}.`);
     const preferred = selectedAccelerator();
     const selected = compatible.includes(preferred) ? preferred : compatible[0]!;
+    if (options.apply === false) return selected;
     if (selected !== preferred) await context.globalState.update(SELECTED_ACCELERATOR_KEY, selected);
+    throwIfOperationCanceled(options.signal);
     problem.updateAccelerator(selected);
     solutionCodeLens.refresh();
     return selected;
@@ -706,11 +764,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       ?? vscode.workspace.getConfiguration("leetgpu").get<string>("defaultAccelerator", "T4");
   }
 
-  async function hasPaidAcceleratorAccess(): Promise<boolean> {
+  async function hasPaidAcceleratorAccess(signal?: AbortSignal): Promise<boolean> {
+    throwIfOperationCanceled(signal);
     if (!(await auth.isConnected())) return false;
+    throwIfOperationCanceled(signal);
     try {
-      return await api.hasActiveSubscription();
+      return await api.hasActiveSubscription(signal);
     } catch (error) {
+      throwIfOperationCanceled(signal);
       log.warn(`Could not determine LeetGPU subscription status: ${safeMessage(error)}`);
       return false;
     }
@@ -827,8 +888,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         task
       );
     } catch (error) {
-      const message = safeMessage(error);
-      log.error(message);
+      if (!(error instanceof vscode.CancellationError)) log.error(safeMessage(error));
       throw error;
     }
   }
@@ -860,6 +920,11 @@ export function deactivate(): void {}
 
 function ensureConnected(connected: boolean): void {
   if (!connected) throw new AuthError("Sign in to LeetGPU before using this feature.", 401);
+}
+
+function throwIfOperationCanceled(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  throw signal.reason instanceof Error ? signal.reason : new vscode.CancellationError();
 }
 
 function safeMessage(error: unknown): string {

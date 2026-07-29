@@ -85,6 +85,7 @@ Run and Submit resolve the solution from the open challenge and selected languag
 ### Usage
 
 1. Open the LeetGPU Activity Bar view and select a challenge.
+   If you select another challenge while one is loading, the previous load is canceled; only the most recently selected challenge opens.
 2. Choose a language in the problem panel. The native solution file opens beside it.
 3. Select an accelerator from the problem panel, solution CodeLens, status bar, or **LeetGPU: Select Accelerator**. The picker keeps every GPU and TPU visible; devices unavailable to the selected language or account remain visible but disabled. JAX runs on TPU, while the other languages run on GPU. H100, H200, and B200 require an active LeetGPU Pro subscription.
 4. Use CodeLens, editor title buttons, `Ctrl/Cmd+'` to run, or `Ctrl/Cmd+Enter` to submit. The bottom LeetGPU Console opens automatically.
@@ -217,6 +218,7 @@ Run 和 Submit 会根据当前题目与所选语言解析对应的 solution。�
 ### 使用方法
 
 1. 打开 LeetGPU Activity Bar 视图并选择一道题目。
+   如果在加载期间选择了另一道题，前一次加载会被取消，最终只打开最后选择的题目。
 2. 在题目面板中选择语言，原生 solution 文件会在旁边打开。
 3. 从题目面板、solution CodeLens、状态栏或 **LeetGPU: Select Accelerator** 选择加速器。选择器会显示所有 GPU 和 TPU；对当前语言或帐号不可用的设备仍然可见，但无法选择。JAX 在 TPU 上运行，其他语言在 GPU 上运行。H100、H200 和 B200 需要有效的 LeetGPU Pro 订阅。
 4. 使用 CodeLens、编辑器标题按钮或 `Ctrl/Cmd+'` 运行，使用 `Ctrl/Cmd+Enter` 提交。底部 LeetGPU Console 会自动打开。

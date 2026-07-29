@@ -1,7 +1,8 @@
 # Changelog
 
-## 0.4.11
+## 0.5.0
 
+- Make challenge opening latest-selection-wins: selecting another challenge cancels the previous network wait and prevents stale work from replacing the final selection.
 - Resolve Run and Submit from the current challenge and selected language instead of requiring its solution to be the active editor, while preserving unsaved solution-buffer changes.
 - Add challenge and language identity comments to generated solution files so multiple open solutions remain easy to distinguish, including a code-preserving migration for existing solutions.
 - Add automatic GitHub and Google sign-in through a persistent, extension-owned Chrome, Edge, Brave, or Chromium profile, avoiding LeetGPU's unavailable VS Code callback while retaining the provider sign-in state for later authorization.

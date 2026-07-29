@@ -25,8 +25,8 @@ export class LeetGpuClient {
     return (body.challenges ?? []).map((item) => challengeSummarySchema.parse(item));
   }
 
-  public async getChallenge(id: number): Promise<ChallengeDetail> {
-    const body = await this.getJson(`/api/v1/challenges/${id}`, false);
+  public async getChallenge(id: number, signal?: AbortSignal): Promise<ChallengeDetail> {
+    const body = await this.getJson(`/api/v1/challenges/${id}`, false, signal);
     return challengeDetailSchema.parse(body);
   }
 
@@ -37,8 +37,8 @@ export class LeetGpuClient {
     return body.progressByChallengeId ?? {};
   }
 
-  public async getAccelerators(mode = "accelerated"): Promise<AcceleratorResponse> {
-    const body = await this.getJson(`/api/v1/settings/${encodeURIComponent(mode)}/accelerators`, false) as {
+  public async getAccelerators(mode = "accelerated", signal?: AbortSignal): Promise<AcceleratorResponse> {
+    const body = await this.getJson(`/api/v1/settings/${encodeURIComponent(mode)}/accelerators`, false, signal) as {
       accelerators?: unknown;
       supportedLanguages?: unknown;
     };
@@ -122,52 +122,63 @@ export class LeetGpuClient {
     return typeof body.displayName === "string" ? body.displayName : undefined;
   }
 
-  public async hasActiveSubscription(): Promise<boolean> {
-    const body = await this.getJson("/api/v1/me/billing/subscription-status", true) as { active?: unknown };
+  public async hasActiveSubscription(signal?: AbortSignal): Promise<boolean> {
+    const body = await this.getJson("/api/v1/me/billing/subscription-status", true, signal) as { active?: unknown };
     return body.active === true;
   }
 
-  private async getJson(path: string, authenticated: boolean): Promise<unknown> {
+  private async getJson(path: string, authenticated: boolean, signal?: AbortSignal): Promise<unknown> {
+    throwIfAborted(signal);
     let token = authenticated ? await this.auth.getAccessToken() : undefined;
-    let response = await request(path, token);
+    throwIfAborted(signal);
+    let response = await request(path, token, signal);
     if (authenticated && response.status === 401) {
       token = await this.auth.getAccessToken(true);
-      response = await request(path, token);
+      throwIfAborted(signal);
+      response = await request(path, token, signal);
     }
     if (!response.ok) {
       throw new ApiError(`LeetGPU request failed (${response.status}).`, response.status);
     }
     try {
-      return await response.json();
+      const body = await response.json();
+      throwIfAborted(signal);
+      return body;
     } catch {
+      throwIfAborted(signal);
       throw new ApiError("LeetGPU returned invalid JSON.", response.status);
     }
   }
 }
 
-async function request(path: string, token?: string): Promise<Response> {
+async function request(path: string, token?: string, externalSignal?: AbortSignal): Promise<Response> {
   const headers: Record<string, string> = { Accept: "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
 
   let lastError: unknown;
   for (let attempt = 0; attempt < 3; attempt += 1) {
+    throwIfAborted(externalSignal);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
+    const abort = () => controller.abort(externalSignal?.reason);
+    externalSignal?.addEventListener("abort", abort, { once: true });
     try {
       const response = await fetch(`${HTTP_API_URL}${path}`, { headers, signal: controller.signal });
       if ((response.status === 429 || response.status >= 500) && attempt < 2) {
-        await delay(250 * 2 ** attempt);
+        await delay(250 * 2 ** attempt, externalSignal);
         continue;
       }
       return response;
     } catch (error) {
+      throwIfAborted(externalSignal);
       lastError = error;
       if (attempt < 2) {
-        await delay(250 * 2 ** attempt);
+        await delay(250 * 2 ** attempt, externalSignal);
         continue;
       }
     } finally {
       clearTimeout(timeout);
+      externalSignal?.removeEventListener("abort", abort);
     }
   }
   throw new ApiError(lastError instanceof Error ? lastError.message : "LeetGPU request failed.");
@@ -227,6 +238,25 @@ function isLanguageMap(value: unknown): value is Record<string, string[]> {
   );
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  throwIfAborted(signal);
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      signal?.removeEventListener("abort", abort);
+      resolve();
+    }, ms);
+    const abort = () => {
+      clearTimeout(timeout);
+      reject(abortReason(signal));
+    };
+    signal?.addEventListener("abort", abort, { once: true });
+  });
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw abortReason(signal);
+}
+
+function abortReason(signal?: AbortSignal): unknown {
+  return signal?.reason ?? new DOMException("LeetGPU request was canceled.", "AbortError");
 }
